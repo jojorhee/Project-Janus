@@ -1,0 +1,293 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Project Janus internship documentation by Josiah Rhee at the Technology Advancement Center." />
+  <title>Project Janus | Infrastructure Documentation</title>
+  <style>
+    :root {
+      --bg: #f4f7f9;
+      --panel: #ffffff;
+      --ink: #17212b;
+      --muted: #5f6c78;
+      --line: #dce4e9;
+      --nav: #111b24;
+      --nav2: #1b2b38;
+      --accent: #0b7a75;
+      --accent-soft: #e5f4f2;
+      --warning: #9a6400;
+      --planned: #6d4bc3;
+      --shadow: 0 12px 30px rgba(20, 35, 50, .08);
+      --radius: 14px;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: var(--ink); background: var(--bg); line-height: 1.6; }
+    a { color: inherit; }
+    .layout { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
+    aside { position: sticky; top: 0; height: 100vh; padding: 26px 20px; color: #eef6f8; background: linear-gradient(180deg, var(--nav), var(--nav2)); overflow-y: auto; }
+    .brand { display: flex; align-items: center; gap: 12px; margin-bottom: 28px; }
+    .mark { width: 42px; height: 42px; border-radius: 11px; display: grid; place-items: center; font-weight: 800; letter-spacing: .08em; background: linear-gradient(135deg, #35c2b7, #0b7a75); color: #062f2c; }
+    .brand strong { display: block; font-size: 1.05rem; }
+    .brand small { color: #aec1ca; }
+    nav a { display: block; padding: 9px 11px; margin: 3px 0; border-radius: 8px; color: #c7d6dd; text-decoration: none; font-size: .92rem; }
+    nav a:hover, nav a:focus { background: rgba(255,255,255,.08); color: #fff; }
+    .sidebar-note { margin-top: 24px; padding: 13px; border: 1px solid rgba(255,255,255,.12); border-radius: 10px; color: #b8cad2; font-size: .82rem; }
+    main { min-width: 0; }
+    .hero { padding: 78px clamp(24px, 6vw, 84px) 64px; color: white; background:
+      radial-gradient(circle at 75% 20%, rgba(53,194,183,.35), transparent 30%),
+      linear-gradient(120deg, #101b25 0%, #17313d 60%, #0b5e5a 140%); }
+    .eyebrow { text-transform: uppercase; letter-spacing: .15em; font-size: .78rem; font-weight: 800; color: #73d6ce; }
+    h1 { margin: 8px 0 12px; font-size: clamp(2.5rem, 7vw, 5.2rem); line-height: .98; letter-spacing: -.05em; }
+    .hero p { max-width: 880px; font-size: clamp(1rem, 2vw, 1.22rem); color: #d8e7eb; }
+    .meta { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 25px; }
+    .chip { padding: 8px 11px; border: 1px solid rgba(255,255,255,.18); border-radius: 999px; background: rgba(255,255,255,.07); font-size: .85rem; }
+    .content { width: min(1120px, calc(100% - 40px)); margin: 0 auto; padding: 48px 0 90px; }
+    section { scroll-margin-top: 24px; margin-bottom: 54px; }
+    h2 { margin: 0 0 8px; font-size: clamp(1.7rem, 4vw, 2.4rem); letter-spacing: -.03em; }
+    h3 { margin-top: 0; }
+    .section-lead { color: var(--muted); max-width: 850px; margin-top: 0; }
+    .grid { display: grid; gap: 18px; }
+    .grid.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .grid.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 22px; box-shadow: var(--shadow); }
+    .metric strong { display: block; font-size: 1.85rem; line-height: 1.1; color: var(--accent); }
+    .metric span { color: var(--muted); font-size: .88rem; }
+    .status { display: inline-flex; align-items: center; gap: 6px; padding: 5px 9px; border-radius: 999px; font-size: .77rem; font-weight: 800; }
+    .complete { background: #e3f5eb; color: #17633b; }
+    .progress { background: #fff3d9; color: #805600; }
+    .planned { background: #eee8ff; color: #5535a3; }
+    table { width: 100%; border-collapse: collapse; font-size: .92rem; }
+    th, td { padding: 12px 10px; border-bottom: 1px solid var(--line); vertical-align: top; text-align: left; }
+    th { color: var(--muted); font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; }
+    .table-wrap { overflow-x: auto; }
+    .diagram { background: #0f1a22; border-radius: var(--radius); padding: 22px; overflow-x: auto; box-shadow: var(--shadow); }
+    .diagram svg { display: block; min-width: 800px; width: 100%; height: auto; }
+    .gallery { display: grid; grid-template-columns: repeat(2, minmax(0,1fr)); gap: 18px; }
+    figure { margin: 0; background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; box-shadow: var(--shadow); }
+    figure img { width: 100%; display: block; background: #eef2f4; }
+    figcaption { padding: 13px 15px 16px; color: var(--muted); font-size: .88rem; }
+    figcaption strong { display: block; color: var(--ink); margin-bottom: 2px; }
+    .callout { padding: 18px 20px; border-left: 4px solid var(--accent); border-radius: 0 10px 10px 0; background: var(--accent-soft); }
+    code { font-family: "SFMono-Regular", Consolas, monospace; }
+    pre { margin: 0; overflow-x: auto; padding: 18px; border-radius: 11px; background: #101820; color: #dcebed; font-size: .86rem; }
+    .timeline { border-left: 2px solid var(--line); margin-left: 8px; padding-left: 23px; }
+    .timeline article { position: relative; margin-bottom: 22px; }
+    .timeline article::before { content: ""; position: absolute; left: -31px; top: 6px; width: 14px; height: 14px; border-radius: 50%; background: var(--accent); border: 3px solid var(--bg); }
+    .phase { font-size: .78rem; color: var(--accent); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
+    footer { color: var(--muted); text-align: center; padding: 24px; border-top: 1px solid var(--line); }
+    .menu { display: none; position: fixed; z-index: 20; top: 12px; right: 12px; border: 0; padding: 10px 12px; border-radius: 8px; background: #12202a; color: white; }
+    @media (max-width: 900px) {
+      .layout { display: block; }
+      aside { position: fixed; z-index: 15; width: 280px; transform: translateX(-100%); transition: transform .2s ease; }
+      aside.open { transform: translateX(0); }
+      .menu { display: block; }
+      .grid.two, .grid.three, .gallery { grid-template-columns: 1fr; }
+      .hero { padding-top: 86px; }
+    }
+    @media print {
+      aside, .menu { display: none; }
+      .layout { display: block; }
+      .hero { color: #000; background: #fff; padding: 25px 0; }
+      .hero p, .eyebrow { color: #333; }
+      .content { width: 100%; }
+      figure, .card, .diagram { box-shadow: none; break-inside: avoid; }
+    }
+  </style>
+</head>
+<body>
+<button class="menu" aria-label="Toggle navigation" onclick="document.querySelector('aside').classList.toggle('open')">Menu</button>
+<div class="layout">
+  <aside>
+    <div class="brand"><div class="mark">J</div><div><strong>Project Janus</strong><small>Infrastructure documentation</small></div></div>
+    <nav>
+      <a href="#overview">Overview</a><a href="#architecture">Architecture</a><a href="#inventory">VM Inventory</a>
+      <a href="#segmentation">Network Segmentation</a><a href="#windows">Windows IT Environment</a>
+      <a href="#monitoring">Sysmon & Log Forwarding</a><a href="#ot">OT Honeypot</a><a href="#telemetry">Traffic & Telemetry</a><a href="#research">Sandworm Research</a>
+      <a href="#validation">Validation</a><a href="#roadmap">Roadmap</a><a href="#appendix">Appendix</a>
+    </nav>
+    <div class="sidebar-note">Prepared by Josiah Rhee<br>Technology Advancement Center<br>July 26-August 26, 2026</div>
+  </aside>
+  <main>
+    <header class="hero" id="overview">
+      <div class="eyebrow">Purple-Team Internship Project · Week 1</div>
+      <h1>Project Janus</h1>
+      <p>Project Janus builds a small, script-driven purple-team lab that automates a mapped adversary attack, collects the resulting telemetry, and uses a large language model to generate detection rules and a threat-intelligence report. It then closes the loop by automatically blocking the attacker when a detection rule fires.</p>
+      <div class="meta"><span class="chip">Josiah Rhee</span><span class="chip">Technology Advancement Center</span><span class="chip">VirtualBox</span><span class="chip">IT / OT / ATTACK segmentation</span></div>
+    </header>
+
+    <div class="content">
+      <section>
+        <h2>Current Scope</h2>
+        <p class="section-lead">This release documents the infrastructure and telemetry foundation completed during the first phase, including centralized Windows endpoint telemetry through Sysmon and Windows Event Forwarding. Automated attack execution, LLM-assisted analytics, detection generation, and automatic response remain later-phase objectives.</p>
+        <div class="grid three">
+          <div class="card metric"><strong>6</strong><span>Virtual machines deployed</span></div>
+          <div class="card metric"><strong>3</strong><span>Segmented internal networks</span></div>
+          <div class="card metric"><strong>4,376+</strong><span>Sysmon events captured and forwarded</span></div>
+        </div>
+      </section>
+
+      <section id="architecture">
+        <h2>Network Architecture</h2>
+        <p class="section-lead">pfSense acts as the routed security boundary between an IT network, an OT network, and a dedicated attacker network. WAN connectivity is isolated behind the firewall, while policy controls govern movement between internal segments.</p>
+        <div class="diagram">
+          <svg viewBox="0 0 1000 500" role="img" aria-label="Project Janus network diagram">
+            <rect x="370" y="160" width="260" height="180" rx="20" fill="#17313d" stroke="#73d6ce" stroke-width="3"/>
+            <text x="500" y="198" text-anchor="middle" fill="white" font-size="25" font-weight="700">pfSense Firewall</text>
+            <text x="500" y="226" text-anchor="middle" fill="#b9d5dc" font-size="16">Stateful routing & filtering</text>
+            <text x="500" y="258" text-anchor="middle" fill="#73d6ce" font-size="14">IT: 10.10.10.1/24</text>
+            <text x="500" y="282" text-anchor="middle" fill="#73d6ce" font-size="14">OT: 10.10.20.1/24</text>
+            <text x="500" y="306" text-anchor="middle" fill="#73d6ce" font-size="14">ATTACK: 10.10.30.1/24</text>
+            <text x="500" y="330" text-anchor="middle" fill="#b9d5dc" font-size="13">WAN: 10.0.2.15/24 (DHCP)</text>
+            <rect x="65" y="80" width="255" height="140" rx="18" fill="#f8fbfc" stroke="#65a9c0" stroke-width="3"/>
+            <text x="192" y="116" text-anchor="middle" fill="#17212b" font-size="23" font-weight="700">IT Network</text><text x="192" y="145" text-anchor="middle" fill="#52616c">10.10.10.0/24</text>
+            <text x="192" y="178" text-anchor="middle" fill="#17212b">Windows Server · 10.10.10.10</text><text x="192" y="201" text-anchor="middle" fill="#17212b">Windows Endpoint · DHCP</text>
+            <rect x="680" y="80" width="255" height="170" rx="18" fill="#f8fbfc" stroke="#42a97b" stroke-width="3"/>
+            <text x="807" y="116" text-anchor="middle" fill="#17212b" font-size="23" font-weight="700">OT Network</text><text x="807" y="145" text-anchor="middle" fill="#52616c">10.10.20.0/24</text>
+            <text x="807" y="178" text-anchor="middle" fill="#17212b">Conpot · 10.10.20.10</text><text x="807" y="201" text-anchor="middle" fill="#17212b">Traffic Generator · 10.10.20.30</text><text x="807" y="225" text-anchor="middle" fill="#17212b">Modbus · TCP/502</text>
+            <rect x="65" y="315" width="255" height="115" rx="18" fill="#f8fbfc" stroke="#b073c7" stroke-width="3"/>
+            <text x="192" y="353" text-anchor="middle" fill="#17212b" font-size="23" font-weight="700">ATTACK Network</text><text x="192" y="382" text-anchor="middle" fill="#52616c">10.10.30.0/24</text><text x="192" y="412" text-anchor="middle" fill="#17212b">Kali Linux · 10.10.30.10</text>
+            <rect x="415" y="25" width="170" height="70" rx="16" fill="#f8fbfc" stroke="#7b8b96" stroke-width="3"/><text x="500" y="57" text-anchor="middle" fill="#17212b" font-size="21" font-weight="700">Internet / WAN</text><text x="500" y="80" text-anchor="middle" fill="#52616c">NAT Network</text>
+            <line x1="415" y1="95" x2="455" y2="160" stroke="#73d6ce" stroke-width="3"/>
+            <line x1="320" y1="165" x2="370" y2="215" stroke="#73d6ce" stroke-width="3"/>
+            <line x1="630" y1="215" x2="680" y2="175" stroke="#73d6ce" stroke-width="3"/>
+            <line x1="320" y1="365" x2="370" y2="295" stroke="#73d6ce" stroke-width="3"/>
+          </svg>
+        </div>
+      </section>
+
+      <section id="inventory">
+        <h2>Virtual Machine Inventory</h2>
+        <div class="table-wrap card"><table><thead><tr><th>System</th><th>OS</th><th>Address</th><th>Role</th></tr></thead><tbody>
+          <tr><td>Windows Server</td><td>Windows Server 2025</td><td>10.10.10.10/24</td><td>Active Directory, DHCP, and administration for the IT environment</td></tr>
+          <tr><td>pfSense Firewall</td><td>FreeBSD-based pfSense</td><td>10.10.10.1 · 10.10.20.1 · 10.10.30.1</td><td>Stateful firewall, routing, segmentation, and WAN access</td></tr>
+          <tr><td>SCADA Honeypot</td><td>Linux Mint</td><td>10.10.20.10/24</td><td>Conpot-based ICS/SCADA emulation and adversary telemetry collection</td></tr>
+          <tr><td>Modbus Traffic Generator</td><td>Linux Mint</td><td>10.10.20.30/24</td><td>Generates representative Modbus traffic for OT validation</td></tr>
+          <tr><td>Linux Attacker</td><td>Kali Linux</td><td>10.10.30.10/24</td><td>Dedicated adversary host for future Sandworm-inspired simulations</td></tr>
+          <tr><td>Windows Endpoint</td><td>Windows 11 Enterprise</td><td>DHCP (shown: 10.10.10.3)</td><td>Domain-joined user workstation within the IT environment</td></tr>
+        </tbody></table></div>
+        <div class="gallery" style="margin-top:18px"><figure><img src="assets/virtualbox-vms.png" alt="VirtualBox list of six Project Janus virtual machines"><figcaption><strong>VirtualBox inventory</strong>All six systems are organized as reusable base virtual machines.</figcaption></figure><figure><img src="assets/pfsense-interfaces.png" alt="pfSense console displaying WAN IT OT and ATTACK interfaces"><figcaption><strong>Firewall interface assignment</strong>pfSense exposes gateways for each internal subnet and a WAN interface through VirtualBox NAT Network.</figcaption></figure></div>
+      </section>
+
+      <section id="segmentation">
+        <h2>Network Segmentation</h2>
+        <p class="section-lead">Rules are placed on the interface where traffic enters pfSense. IT and OT are prevented from initiating cross-segment traffic, while the attacker network receives only narrowly scoped access required for controlled testing.</p>
+        <div class="callout"><strong>Configuration note:</strong> The OT rule labeled “Block OT outbound access to IT” is intended to block traffic. The screenshot displays a pass action icon, so the action should be corrected or revalidated to match the documented policy.</div>
+        <div class="gallery" style="margin-top:18px">
+          <figure><img src="assets/firewall-wan.png" alt="pfSense WAN firewall rules"><figcaption><strong>WAN policy</strong>No inbound pass rules are defined; unsolicited WAN traffic remains blocked.</figcaption></figure>
+          <figure><img src="assets/firewall-it.png" alt="pfSense IT firewall rules"><figcaption><strong>IT policy</strong>IT-to-OT traffic is explicitly denied before general outbound access.</figcaption></figure>
+          <figure><img src="assets/firewall-ot.png" alt="pfSense OT firewall rules"><figcaption><strong>OT policy</strong>OT-to-IT isolation is the intended design, with temporary setup access retained during deployment.</figcaption></figure>
+          <figure><img src="assets/firewall-attack.png" alt="pfSense ATTACK firewall rules"><figcaption><strong>ATTACK policy</strong>Specific access to Modbus TCP/502 and approved Windows ports is allowed; broader IT and OT access is denied.</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="windows">
+        <h2>Windows IT Environment</h2>
+        <p class="section-lead">Windows Server provides Active Directory, DNS, and DHCP services for the IT network. The Windows 11 endpoint successfully received a lease, resolved the lab domain, reached both the server and gateway, joined <code>purplelab.local</code>, and authenticated as a domain user.</p>
+        <div class="callout" style="margin-bottom:18px"><strong>Configuration summary:</strong> Windows Server uses the static address <code>10.10.10.10/24</code>, the pfSense IT gateway <code>10.10.10.1</code>, and its local DNS resolver at <code>127.0.0.1</code>. DHCP distributes the server as DNS and pfSense as the default gateway to the Windows client.</div>
+        <div class="gallery">
+          <figure><img src="assets/windows-server-ipv4.png" alt="Windows Server static IPv4 configuration"><figcaption><strong>Server network configuration</strong>Windows Server is statically assigned <code>10.10.10.10/24</code> with <code>10.10.10.1</code> as its default gateway and localhost as its DNS resolver.</figcaption></figure>
+          <figure><img src="assets/dhcp-scope.png" alt="Windows DHCP scope for 10.10.10.0"><figcaption><strong>DHCP scope</strong>The IT scope serves the <code>10.10.10.0/24</code> network.</figcaption></figure>
+          <figure><img src="assets/dhcp-lease.png" alt="DHCP lease for Windows endpoint"><figcaption><strong>Active lease</strong>The Windows endpoint received <code>10.10.10.3</code> from Windows Server.</figcaption></figure>
+          <figure><img src="assets/active-directory-user.png" alt="Active Directory user properties"><figcaption><strong>Identity administration</strong>A test user was created successfully in Active Directory.</figcaption></figure>
+          <figure><img src="assets/windows-domain.png" alt="Windows system properties showing domain membership"><figcaption><strong>Domain membership</strong>The endpoint is joined to <code>purplelab.local</code>.</figcaption></figure>
+          <figure><img src="assets/windows-client-ipconfig-all.png" alt="Windows client ipconfig all output showing DHCP and DNS details"><figcaption><strong>DHCP and DNS validation</strong>The client received <code>10.10.10.3/24</code>, gateway <code>10.10.10.1</code>, and DHCP/DNS server <code>10.10.10.10</code>.</figcaption></figure>
+          <figure><img src="assets/windows-connectivity-dns.png" alt="Windows client connectivity and DNS lookup tests"><figcaption><strong>Connectivity and name resolution</strong>The endpoint reached both Windows Server and pfSense with no packet loss, and <code>purplelab.local</code> resolved to <code>10.10.10.10</code>.</figcaption></figure>
+          <figure><img src="assets/windows-domain-whoami.png" alt="Whoami output showing authenticated domain user"><figcaption><strong>Domain authentication</strong><code>whoami</code> confirms the user session is authenticated as <code>purplelab\jdoe</code>.</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="monitoring">
+        <h2>Sysmon and Centralized Windows Logging</h2>
+        <p class="section-lead">Sysmon 15.2 is installed on the Windows 11 endpoint using Olaf Hartong's configuration. Events are recorded locally in the Sysmon Operational log and forwarded to Windows Server through Windows Event Forwarding, creating a centralized source of endpoint telemetry for later detection engineering.</p>
+        <div class="grid two">
+          <div class="card"><h3>Implementation</h3><pre>Sysmon64.exe -accepteula -i sysmonconfig.xml</pre><p>The endpoint runs <code>Sysmon64.exe</code> with a community-maintained configuration designed to provide detailed process, network, file, registry, and DNS visibility.</p></div>
+          <div class="card"><h3>Forwarding Path</h3><p><strong>Source:</strong> Windows 11 endpoint</p><p><strong>Destination:</strong> Windows Server Forwarded Events log</p><p><strong>Transport:</strong> WinRM over HTTP, TCP/5985</p><p><strong>Status:</strong> Validated end to end</p></div>
+        </div>
+        <div class="gallery" style="margin-top:18px">
+          <figure><img src="assets/sysmon-service-running.png" alt="Sysmon64 process running on the Windows endpoint"><figcaption><strong>Sysmon service running</strong>Task Manager confirms <code>Sysmon64.exe</code> is active on the Windows endpoint.</figcaption></figure>
+          <figure><img src="assets/sysmon-operational-log.png" alt="Sysmon Operational log containing thousands of events"><figcaption><strong>Local event generation</strong>The endpoint's Sysmon Operational log contains more than 4,300 events, including network connections, file activity, DNS queries, and registry events.</figcaption></figure>
+          <figure><img src="assets/sysmon-event-11-file-create.png" alt="Forwarded Sysmon Event ID 11 showing PowerShell file creation"><figcaption><strong>File creation telemetry</strong>Forwarded Sysmon Event ID 11 records PowerShell creating <code>file.txt</code>, including the image path, process identifier, user, target filename, and UTC timestamp.</figcaption></figure>
+          <figure><img src="assets/sysmon-forwarded-event-3.png" alt="Forwarded Sysmon Event ID 3 showing a WinRM network connection"><figcaption><strong>Network connection telemetry</strong>Forwarded Sysmon Event ID 3 captures a TCP connection to Windows Server on port <code>5985</code>, demonstrating centralized visibility into WinRM traffic.</figcaption></figure>
+        </div>
+        <div class="callout" style="margin-top:18px"><strong>Troubleshooting result:</strong> Initial subscriptions did not deliver events reliably. The subscriptions were deleted and recreated, WinRM and host connectivity were verified, and Windows Server was changed from HTTPS on TCP/5986 to HTTP on TCP/5985. After that change, Sysmon events appeared in the server's <em>Forwarded Events</em> log.</div>
+      </section>
+
+      <section id="ot">
+        <h2>OT Honeypot Deployment</h2>
+        <p class="section-lead">Conpot runs in a container on Linux Mint and emulates common industrial protocols. Modbus is enabled for this phase, providing a controlled target for realistic OT traffic and future adversary activity.</p>
+        <div class="gallery">
+          <figure><img src="assets/conpot-container.png" alt="Docker container running Conpot"><figcaption><strong>Containerized deployment</strong>The Conpot container exposes Modbus TCP/502 and other industrial protocol ports.</figcaption></figure>
+          <figure><img src="assets/conpot-logs.png" alt="Conpot startup logs showing enabled Modbus"><figcaption><strong>Protocol initialization</strong>Startup logs confirm Conpot loaded its template and enabled the Modbus protocol.</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="telemetry">
+        <h2>Modbus Traffic and Telemetry</h2>
+        <p class="section-lead">A Python script uses PyModbus to connect to the Conpot service every five seconds and read holding registers. Successful responses, packet capture, and Conpot logs confirm an end-to-end telemetry path.</p>
+        <div class="gallery">
+          <figure><img src="assets/modbus-script.png" alt="Python PyModbus traffic generator script"><figcaption><strong>Script-driven traffic</strong>The generator repeatedly reads five holding registers from device ID 2 at 10.10.20.10:502.</figcaption></figure>
+          <figure><img src="assets/modbus-output.png" alt="Successful Modbus read responses"><figcaption><strong>Application-layer validation</strong>Repeated read responses confirm the honeypot accepts and answers Modbus requests.</figcaption></figure>
+          <figure><img src="assets/tcpdump-modbus.png" alt="tcpdump capture of TCP port 502 traffic"><figcaption><strong>Packet-level validation</strong><code>tcpdump</code> records bidirectional sessions between 10.10.20.30 and 10.10.20.10 on TCP/502.</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="research">
+        <h2>Sandworm Technique Mapping</h2>
+        <p class="section-lead">Initial research maps techniques associated with Sandworm's 2022 electric-sector campaign to MITRE ATT&CK and ATT&CK for ICS tactics. This mapping will guide controlled scripts and identify telemetry requirements for later detection engineering.</p>
+        <div class="gallery"><figure><img src="assets/mitre-mapping-1.png" alt="First page of Sandworm MITRE ATT&CK mapping"><figcaption><strong>Enterprise technique mapping</strong>Initial access through evasion and persistence techniques are organized by tactic.</figcaption></figure><figure><img src="assets/mitre-mapping-2.png" alt="Second page of Sandworm MITRE ATT&CK mapping"><figcaption><strong>ICS and impact mapping</strong>The research includes command messaging, process-control impairment, and destructive impact.</figcaption></figure></div>
+      </section>
+
+      <section id="validation">
+        <h2>Validation Results</h2>
+        <div class="table-wrap card"><table><thead><tr><th>Capability</th><th>Status</th><th>Evidence</th></tr></thead><tbody>
+          <tr><td>DHCP, DNS, and Active Directory</td><td><span class="status complete">Complete</span></td><td>Static server configuration, lease issuance, DNS resolution, and test-user creation validated</td></tr>
+          <tr><td>Windows domain membership</td><td><span class="status complete">Complete</span></td><td>Endpoint joined to <code>purplelab.local</code> and authenticated as <code>purplelab\jdoe</code></td></tr>
+          <tr><td>pfSense interfaces and routing</td><td><span class="status complete">Complete</span></td><td>Three gateways configured and hosts reach their local gateway</td></tr>
+          <tr><td>Firewall segmentation</td><td><span class="status complete">Complete</span></td><td>Rules defined; OT block action should be revalidated</td></tr>
+          <tr><td>Conpot Modbus service</td><td><span class="status complete">Complete</span></td><td>Container running with Modbus enabled</td></tr>
+          <tr><td>Modbus generator</td><td><span class="status complete">Complete</span></td><td>Repeated register-read responses</td></tr>
+          <tr><td>Packet and host logging</td><td><span class="status complete">Complete</span></td><td>TCP/502 traffic and Conpot startup/activity captured</td></tr>
+          <tr><td>Kali attacker baseline</td><td><span class="status complete">Complete</span></td><td>Static address and gateway connectivity validated</td></tr>
+          <tr><td>Sandworm mapping</td><td><span class="status complete">Complete</span></td><td>Initial tactic and technique mapping drafted</td></tr>
+          <tr><td>Windows Sysmon</td><td><span class="status complete">Complete</span></td><td>Sysmon 15.2 deployed on the Windows endpoint with Olaf Hartong configuration</td></tr>
+          <tr><td>Windows Event Forwarding</td><td><span class="status complete">Complete</span></td><td>Endpoint events received centrally on Windows Server over WinRM HTTP/5985</td></tr>
+        </tbody></table></div>
+        <div class="gallery" style="margin-top:18px"><figure><img src="assets/kali-ip.png" alt="Kali Linux IP configuration"><figcaption><strong>Attacker baseline</strong>Kali uses 10.10.30.10/24 on the ATTACK network.</figcaption></figure><figure><img src="assets/kali-gateway-test.png" alt="Successful ping from Kali to gateway"><figcaption><strong>Gateway reachability</strong>Four successful ICMP replies validate local connectivity to 10.10.30.1.</figcaption></figure></div>
+      </section>
+
+      <section id="roadmap">
+        <h2>Project Roadmap</h2>
+        <div class="timeline">
+          <article><div class="phase">Phase 1 · Complete</div><h3>Infrastructure foundation</h3><p>Deploy segmented VMs, validate domain services, run Conpot, generate Modbus traffic, and capture baseline telemetry.</p></article>
+          <article><div class="phase">Phase 2 · In progress</div><h3>Endpoint and network visibility</h3><p>Sysmon and Windows Event Forwarding are complete. Next, standardize log collection, preserve synchronized test windows, and prepare centralized telemetry for analysis.</p></article>
+          <article><div class="phase">Phase 3</div><h3>Mapped adversary automation</h3><p>Convert selected Sandworm techniques into safe, repeatable scripts that execute from the ATTACK network against approved lab targets.</p></article>
+          <article><div class="phase">Phase 4</div><h3>LLM-assisted detection engineering</h3><p>Provide collected telemetry and mapped context to an LLM to draft detection rules and a threat-intelligence report, followed by human validation.</p></article>
+          <article><div class="phase">Phase 5</div><h3>Closed-loop response</h3><p>Trigger an automated pfSense block when a validated rule fires, then measure whether the attacker is contained without disrupting expected lab traffic.</p></article>
+        </div>
+      </section>
+
+      <section id="appendix">
+        <h2>Technical Appendix</h2>
+        <div class="grid two">
+          <div class="card"><h3>Key Addresses</h3><pre>IT:      10.10.10.0/24  gateway 10.10.10.1
+OT:      10.10.20.0/24  gateway 10.10.20.1
+ATTACK:  10.10.30.0/24  gateway 10.10.30.1
+Conpot:  10.10.20.10:502
+Generator: 10.10.20.30
+Attacker:  10.10.30.10</pre></div>
+          <div class="card"><h3>Representative Commands</h3><pre>sudo tcpdump -ni any tcp port 502
+
+Sysmon64.exe -accepteula -i sysmonconfig.xml</pre><p>Use synchronized start and stop timestamps for each test and preserve packet, Conpot, Linux, Sysmon, and Forwarded Events logs under a consistent test identifier.</p></div>
+        </div>
+      </section>
+    </div>
+    <footer>Project Janus · Josiah Rhee · Technology Advancement Center · Infrastructure Documentation</footer>
+  </main>
+</div>
+<script>
+  document.querySelectorAll('aside a').forEach(a => a.addEventListener('click', () => document.querySelector('aside').classList.remove('open')));
+</script>
+</body>
+</html>
