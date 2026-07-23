@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Project Janus Week 2 documentation: Sysmon, Windows Event Forwarding, Sandworm attack planning, and controlled Modbus scripting.">
+  <title>Project Janus | Week 2</title>
+  <style>
+    :root{
+      --bg:#f4f7f9;--panel:#fff;--ink:#17212b;--muted:#5f6c78;--line:#dce4e9;
+      --nav:#111b24;--nav2:#1b2b38;--accent:#0b7a75;--accent2:#35c2b7;
+      --soft:#e5f4f2;--green:#17633b;--greenbg:#e3f5eb;--amber:#805600;--amberbg:#fff3d9;
+      --purple:#5535a3;--purplebg:#eee8ff;--danger:#9a3412;--dangerbg:#fff0e8;
+      --shadow:0 12px 30px rgba(20,35,50,.08);--radius:14px
+    }
+    *{box-sizing:border-box}html{scroll-behavior:smooth}body{margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--ink);line-height:1.6}a{color:inherit}.layout{display:grid;grid-template-columns:270px minmax(0,1fr);min-height:100vh}aside{position:sticky;top:0;height:100vh;padding:26px 20px;color:#eef6f8;background:linear-gradient(180deg,var(--nav),var(--nav2));overflow-y:auto}.brand{display:flex;align-items:center;gap:12px;margin-bottom:28px}.mark{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-weight:800;letter-spacing:.08em;background:linear-gradient(135deg,var(--accent2),var(--accent));color:#062f2c}.brand strong{display:block;font-size:1.05rem}.brand small{color:#aec1ca}nav a{display:block;padding:9px 11px;margin:3px 0;border-radius:8px;color:#c7d6dd;text-decoration:none;font-size:.92rem}nav a:hover,nav a:focus{background:rgba(255,255,255,.08);color:#fff}.sidebar-note{margin-top:24px;padding:13px;border:1px solid rgba(255,255,255,.12);border-radius:10px;color:#b8cad2;font-size:.82rem}.hero{padding:78px clamp(24px,6vw,84px) 64px;color:white;background:radial-gradient(circle at 75% 20%,rgba(53,194,183,.35),transparent 30%),linear-gradient(120deg,#101b25 0%,#17313d 60%,#0b5e5a 140%)}.eyebrow{text-transform:uppercase;letter-spacing:.15em;font-size:.78rem;font-weight:800;color:#73d6ce}h1{margin:8px 0 12px;font-size:clamp(2.5rem,7vw,5.2rem);line-height:.98;letter-spacing:-.05em}.hero p{max-width:900px;font-size:clamp(1rem,2vw,1.22rem);color:#d8e7eb}.meta{display:flex;flex-wrap:wrap;gap:10px;margin-top:25px}.chip{padding:8px 11px;border:1px solid rgba(255,255,255,.18);border-radius:999px;background:rgba(255,255,255,.07);font-size:.85rem}.content{width:min(1120px,calc(100% - 40px));margin:0 auto;padding:48px 0 90px}section{scroll-margin-top:24px;margin-bottom:54px}h2{margin:0 0 8px;font-size:clamp(1.7rem,4vw,2.4rem);letter-spacing:-.03em}h3{margin-top:0}.section-lead{color:var(--muted);max-width:900px;margin-top:0}.grid{display:grid;gap:18px}.grid.two{grid-template-columns:repeat(2,minmax(0,1fr))}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:22px;box-shadow:var(--shadow)}.metric strong{display:block;font-size:1.85rem;line-height:1.1;color:var(--accent)}.metric span{color:var(--muted);font-size:.88rem}.status{display:inline-flex;align-items:center;gap:6px;padding:5px 9px;border-radius:999px;font-size:.77rem;font-weight:800}.complete{background:var(--greenbg);color:var(--green)}.progress{background:var(--amberbg);color:var(--amber)}.planned{background:var(--purplebg);color:var(--purple)}.excluded{background:var(--dangerbg);color:var(--danger)}table{width:100%;border-collapse:collapse;font-size:.92rem}th,td{padding:12px 10px;border-bottom:1px solid var(--line);vertical-align:top;text-align:left}th{color:var(--muted);font-size:.78rem;text-transform:uppercase;letter-spacing:.06em}.table-wrap{overflow-x:auto}.gallery{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}figure{margin:0;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}figure img{width:100%;display:block;background:#eef2f4}figcaption{padding:13px 15px 16px;color:var(--muted);font-size:.88rem}figcaption strong{display:block;color:var(--ink);margin-bottom:2px}.callout{padding:18px 20px;border-left:4px solid var(--accent);border-radius:0 10px 10px 0;background:var(--soft)}code{font-family:"SFMono-Regular",Consolas,monospace}pre{margin:0;overflow-x:auto;padding:18px;border-radius:11px;background:#101820;color:#dcebed;font-size:.86rem}.timeline{position:relative;margin:25px 0;padding-left:34px}.timeline::before{content:"";position:absolute;left:8px;top:8px;bottom:8px;width:2px;background:var(--line)}.timeline article{position:relative;margin-bottom:22px;padding:18px 20px;background:var(--panel);border:1px solid var(--line);border-radius:12px;box-shadow:var(--shadow)}.timeline article::before{content:"";position:absolute;left:-33px;top:23px;width:14px;height:14px;border-radius:50%;background:var(--accent);border:3px solid var(--bg)}.timeline .phase{font-size:.75rem;text-transform:uppercase;letter-spacing:.08em;color:var(--accent);font-weight:800}.flow{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:12px;align-items:stretch}.flow .node{position:relative;padding:16px;background:#0f1a22;color:#ecf7f6;border:1px solid #32505d;border-radius:12px}.flow .node:not(:last-child)::after{content:"→";position:absolute;right:-11px;top:50%;transform:translate(50%,-50%);z-index:2;color:var(--accent);font-size:1.5rem;font-weight:800}.flow small{display:block;color:#8ecfc9;margin-top:4px}.legend{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}.menu{display:none;position:fixed;z-index:20;top:12px;right:12px;border:0;padding:10px 12px;border-radius:8px;background:#12202a;color:white}footer{color:var(--muted);text-align:center;padding:24px;border-top:1px solid var(--line)}
+    @media(max-width:900px){.layout{display:block}aside{position:fixed;z-index:15;width:280px;transform:translateX(-100%);transition:transform .2s ease}aside.open{transform:translateX(0)}.menu{display:block}.grid.two,.grid.three,.gallery,.flow{grid-template-columns:1fr}.flow .node:not(:last-child)::after{content:"↓";right:auto;left:50%;top:auto;bottom:-21px;transform:translateX(-50%)}.hero{padding-top:86px}}
+    @media print{aside,.menu{display:none}.layout{display:block}.hero{color:#000;background:#fff;padding:25px 0}.hero p,.eyebrow{color:#333}.content{width:100%}figure,.card,.timeline article{box-shadow:none;break-inside:avoid}}
+  </style>
+</head>
+<body>
+<button class="menu" aria-label="Toggle navigation" onclick="document.querySelector('aside').classList.toggle('open')">Menu</button>
+<div class="layout">
+  <aside>
+    <div class="brand"><div class="mark">J</div><div><strong>Project Janus</strong><small>Week 2 documentation</small></div></div>
+    <nav>
+      <a href="#overview">Overview</a>
+      <a href="#outcomes">Week Outcomes</a>
+      <a href="#telemetry">Sysmon & WEF</a>
+      <a href="#network">Network Validation</a>
+      <a href="#apt">Sandworm Profile</a>
+      <a href="#chain">Planned Attack Chain</a>
+      <a href="#ot">OT Attack Scripting</a>
+      <a href="#troubleshooting">Troubleshooting</a>
+      <a href="#status">Status & Next Steps</a>
+    </nav>
+    <div class="sidebar-note">Prepared by Josiah Rhee<br>Technology Advancement Center<br>Week 2 · July 19–23, 2026</div>
+  </aside>
+  <main>
+    <header class="hero" id="overview">
+      <div class="eyebrow">Purple-Team Internship Project · Week 2</div>
+      <h1>Visibility to Action</h1>
+      <p>Week 2 advanced Project Janus from a working virtual lab into a monitored and script-driven test environment. The main work included deploying Sysmon, validating Windows Event Forwarding, finalizing the Sandworm attack mapping, confirming segmented network access, and building a controlled Modbus baseline–write–restore workflow.</p>
+      <div class="meta"><span class="chip">Josiah Rhee</span><span class="chip">Technology Advancement Center</span><span class="chip">July 19–23, 2026</span><span class="chip">Sysmon · WEF · PowerShell · Python · Modbus</span></div>
+    </header>
+
+    <div class="content">
+      <section id="outcomes">
+        <h2>Week 2 Outcomes</h2>
+        <p class="section-lead">The week focused on endpoint visibility, controlled attack preparation, and validating that pfSense permits only the traffic required by the planned emulation.</p>
+        <div class="grid three">
+          <div class="card metric"><strong>5</strong><span>Confirmed Sysmon event types</span></div>
+          <div class="card metric"><strong>4</strong><span>OT Python modules implemented</span></div>
+          <div class="card metric"><strong>1</strong><span>End-to-end OT action orchestrator</span></div>
+        </div>
+        <div class="table-wrap card" style="margin-top:18px">
+          <table><thead><tr><th>Objective</th><th>Result</th><th>Status</th></tr></thead><tbody>
+            <tr><td>Deploy Windows endpoint telemetry</td><td>Sysmon 15.2 installed with Olaf Hartong configuration</td><td><span class="status complete">Complete</span></td></tr>
+            <tr><td>Centralize Windows events</td><td>Source-initiated WEF subscription delivered all Sysmon events to Windows Server</td><td><span class="status complete">Validated</span></td></tr>
+            <tr><td>Use WEF for final export workflow</td><td>Forwarding works, but reliable export was not achieved; local export remains the practical collection path</td><td><span class="status progress">Not Used</span></td></tr>
+            <tr><td>Validate segmented connectivity</td><td>ATTACK-to-Conpot TCP/502 allowed; ATTACK-to-IT TCP/80 blocked</td><td><span class="status complete">Complete</span></td></tr>
+            <tr><td>Finalize Sandworm mapping</td><td>2022 Ukraine electric-power campaign mapped to Enterprise and ICS tactics</td><td><span class="status complete">Complete</span></td></tr>
+            <tr><td>Begin attack scripting</td><td>OT baseline, write, restore, shared client, and orchestration workflow developed</td><td><span class="status complete">Mostly Complete</span></td></tr>
+          </tbody></table>
+        </div>
+      </section>
+
+      <section id="telemetry">
+        <h2>Windows Telemetry: Sysmon and WEF</h2>
+        <p class="section-lead">Sysmon 15.2 was installed only on the Windows 11 endpoint using the unmodified Olaf Hartong configuration. Test activity included application launches, web connections, file creation and deletion, DNS queries, and user logon/logoff activity.</p>
+        <div class="grid two">
+          <div class="card"><h3>Endpoint Configuration</h3><pre>Sysmon64.exe -accepteula -i sysmonconfig.xml</pre><p>Events are recorded in <code>Microsoft-Windows-Sysmon/Operational</code>.</p></div>
+          <div class="card"><h3>Forwarding Configuration</h3><p><strong>Subscription:</strong> <code>Sysmon</code></p><p><strong>Mode:</strong> Source computer initiated</p><p><strong>Destination:</strong> Windows Server · Forwarded Events</p><p><strong>Transport:</strong> WinRM HTTP · TCP/5985</p><p><strong>Scope:</strong> All Sysmon events</p></div>
+        </div>
+        <div class="gallery" style="margin-top:18px">
+          <figure><img src="assets/sysmon-service.png" alt="Sysmon64 running on Windows endpoint"><figcaption><strong>Sysmon running</strong><code>Sysmon64.exe</code> is active on the Windows 11 endpoint.</figcaption></figure>
+          <figure><img src="assets/sysmon-log.png" alt="Sysmon Operational event log"><figcaption><strong>Local event generation</strong>The endpoint generated process, network, DNS, file, and registry telemetry.</figcaption></figure>
+          <figure><img src="assets/wef-subscription.png" alt="Source initiated Sysmon WEF subscription"><figcaption><strong>Source-initiated subscription</strong>The <code>Sysmon</code> subscription forwards events to the server’s Forwarded Events log.</figcaption></figure>
+          <figure><img src="assets/wef-status.png" alt="Active WEF subscription runtime status"><figcaption><strong>Active source</strong>The domain-joined Windows endpoint appears as an active source computer.</figcaption></figure>
+          <figure><img src="assets/sysmon-event3.png" alt="Sysmon Event ID 3 network connection"><figcaption><strong>Event ID 3 · Network connection</strong>Forwarded telemetry captured a connection involving WinRM on TCP/5985.</figcaption></figure>
+          <figure><img src="assets/sysmon-event11.png" alt="Sysmon Event ID 11 file creation"><figcaption><strong>Event ID 11 · File creation</strong>PowerShell file activity includes process, user, path, and UTC timestamp fields.</figcaption></figure>
+          <figure><img src="assets/sysmon-event13.png" alt="Sysmon Event ID 13 registry value set"><figcaption><strong>Event ID 13 · Registry value set</strong>A Task Scheduler registry change is tagged with scheduled-task technique context.</figcaption></figure>
+          <figure><img src="assets/sysmon-event22.png" alt="Sysmon Event ID 22 DNS query"><figcaption><strong>Event ID 22 · DNS query</strong>The event records the queried domain, result, process context, and timestamp.</figcaption></figure>
+        </div>
+        <div class="callout" style="margin-top:18px"><strong>Collection decision:</strong> WEF is operational and proved centralized visibility, but it is not being used as the final log-export method because exports from the collector were unreliable. Project Janus will preserve this implementation as evidence while using a more dependable local export workflow for attack datasets.</div>
+      </section>
+
+      <section id="network">
+        <h2>Segmentation Validation</h2>
+        <p class="section-lead">Week 2 verified that firewall policy supports the planned emulation without broadly opening traffic between the ATTACK, IT, and OT segments.</p>
+        <div class="gallery">
+          <figure><img src="assets/allowed-502.png" alt="Successful netcat test from Kali to Conpot port 502"><figcaption><strong>Approved OT path</strong>Kali successfully reached Conpot at <code>10.10.20.10:502</code>, allowing the planned Modbus action.</figcaption></figure>
+          <figure><img src="assets/blocked-80.png" alt="Timed out netcat test from Kali to IT host port 80"><figcaption><strong>Restricted IT path</strong>A connection from Kali to <code>10.10.10.10:80</code> timed out, demonstrating that unrelated cross-subnet access remained blocked.</figcaption></figure>
+        </div>
+      </section>
+
+      <section id="apt">
+        <h2>Sandworm Threat Profile</h2>
+        <p class="section-lead">The emulation is based on Sandworm’s 2022 Ukraine electric-power attack. The real campaign combined access and persistence mechanisms, encrypted command-and-control, GPO-based deployment, unauthorized SCADA commands, and destructive impact. Project Janus translates that sequence into safe, observable lab behaviors rather than reproducing malware.</p>
+        <div class="grid two">
+          <div class="card"><h3>Campaign Characteristics</h3><ul><li>Living-off-the-land and administrative tooling</li><li>Movement from enterprise systems toward OT</li><li>Group Policy abuse for broad execution</li><li>Unauthorized industrial command execution</li><li>Destructive impact designed to delay recovery</li></ul></div>
+          <div class="card"><h3>Project Scope Decisions</h3><p><span class="status excluded">Excluded</span> Unknown initial access and Neo-REGEORG web-shell deployment</p><p><span class="status planned">Assumed</span> Administrative access required for the lab chain</p><p><span class="status complete">Mapped</span> PowerShell, remote services, GPO modification, data destruction, and ICS command activity</p><p><span class="status planned">Deferred</span> AI-generated detection and automatic pfSense response</p></div>
+        </div>
+        <div class="table-wrap card" style="margin-top:18px"><table><thead><tr><th>Campaign Behavior</th><th>Janus Translation</th><th>Primary Evidence</th></tr></thead><tbody>
+          <tr><td>Remote access and execution</td><td>Kali RDP and PowerShell activity on the Windows client</td><td>Sysmon process, network, DNS, and logon telemetry</td></tr>
+          <tr><td>Administrative movement</td><td>PowerShell remoting from client to Server/DC</td><td>Sysmon network/process events and Windows logs</td></tr>
+          <tr><td>GPO-based distribution</td><td>Benign test GPO distributed back to the client</td><td>GPO changes, scheduled-task/registry activity</td></tr>
+          <tr><td>Destructive malware impact</td><td>Safe wiper limited to disposable client files</td><td>File creation/deletion and PowerShell telemetry</td></tr>
+          <tr><td>Unauthorized SCADA commands</td><td>Controlled Modbus coil change on Conpot</td><td>JSON evidence, Conpot logs, packet capture</td></tr>
+        </tbody></table></div>
+      </section>
+
+      <section id="chain">
+        <h2>Planned Sandworm-Inspired Attack Chain</h2>
+        <p class="section-lead">The sequence mirrors the campaign’s enterprise-to-OT progression while keeping initial access assumed and every impact reversible.</p>
+        <div class="flow">
+          <div class="node"><strong>1. Kali RDP</strong><small>Remote connection to Windows client</small></div>
+          <div class="node"><strong>2. Discovery</strong><small>PowerShell host and domain discovery</small></div>
+          <div class="node"><strong>3. Admin Assumption</strong><small>Known lab credentials; no credential theft</small></div>
+          <div class="node"><strong>4. PS Remoting</strong><small>Client to Windows Server/DC</small></div>
+          <div class="node"><strong>5. Test GPO</strong><small>Benign policy distributed to client</small></div>
+          <div class="node"><strong>6. Safe Wiper</strong><small>Deletes disposable test files only</small></div>
+          <div class="node"><strong>7. OT Scripts</strong><small>Compromised client runs Modbus workflow</small></div>
+          <div class="node"><strong>8. Coil Change</strong><small>Controlled change and restoration on Conpot</small></div>
+        </div>
+      </section>
+
+      <section id="ot">
+        <h2>Controlled OT Attack Scripting</h2>
+        <p class="section-lead">The OT workflow is designed to be explicit, reversible, and evidence-driven. It records a pre-action baseline, requires operator confirmation before writing, verifies the result, and restores the exact original value.</p>
+        <div class="table-wrap card"><table><thead><tr><th>File</th><th>Responsibility</th><th>Status</th></tr></thead><tbody>
+          <tr><td><code>modbus_client.py</code></td><td>Shared safe Modbus client, configuration loading, validation, and helper functions</td><td><span class="status complete">Complete</span></td></tr>
+          <tr><td><code>modbus_baseline.py</code></td><td>Reads approved values and stores the original state in a timestamped JSON baseline</td><td><span class="status complete">Complete</span></td></tr>
+          <tr><td><code>modbus_write.py</code></td><td>Performs one allowlisted coil write, confirms it by reading back, and stores attack evidence</td><td><span class="status complete">Complete</span></td></tr>
+          <tr><td><code>modbus_restore.py</code></td><td>Restores the coil from the exact baseline file selected by the operator</td><td><span class="status complete">Complete</span></td></tr>
+          <tr><td><code>run_ot_action.ps1</code></td><td>Orchestrates baseline, write, timeline recording, and restoration from the Windows client</td><td><span class="status complete">Complete</span></td></tr>
+        </tbody></table></div>
+        <div class="gallery" style="margin-top:18px">
+          <figure><img src="assets/ot-code.png" alt="VS Code showing Modbus baseline write restore and client scripts"><figcaption><strong>Modular script design</strong>Separate files isolate shared client behavior, baseline capture, controlled action, and restoration.</figcaption></figure>
+          <figure><img src="assets/modbus-baseline-output.png" alt="Modbus baseline script saving JSON"><figcaption><strong>Baseline capture</strong>The original Modbus state is saved under the baseline evidence directory before any write occurs.</figcaption></figure>
+          <figure><img src="assets/modbus-write-output.png" alt="Modbus write script controlled coil write"><figcaption><strong>Controlled write</strong>The script announces the target, requires the operator to type <code>WRITE</code>, changes coil 1 to <code>True</code>, and saves normalized JSON evidence.</figcaption></figure>
+          <figure><img src="assets/ot-orchestration.png" alt="PowerShell orchestrator completing baseline write and restore"><figcaption><strong>End-to-end orchestration</strong><code>run_ot_action.ps1</code> records a baseline, performs the approved write, updates the timeline, and restores the coil to its original value.</figcaption></figure>
+        </div>
+        <div class="callout" style="margin-top:18px"><strong>Safety control:</strong> The workflow does not select an arbitrary “latest” baseline. Restoration requires the exact pre-write JSON file, reducing the chance of restoring the wrong state and preserving older baselines for behavioral comparison.</div>
+      </section>
+
+      <section id="troubleshooting">
+        <h2>Troubleshooting and Engineering Decisions</h2>
+        <div class="timeline">
+          <article><div class="phase">Windows Event Forwarding</div><h3>Events did not arrive consistently</h3><p>Subscriptions were deleted and recreated, WinRM was checked, network connectivity was confirmed, and FQDN/WSMan errors were investigated. Replacing HTTPS/5986 with HTTP/5985 allowed the source-initiated subscription to become active.</p></article>
+          <article><div class="phase">Evidence Collection</div><h3>Forwarding worked, exporting did not</h3><p>WEF remains useful as proof of centralized collection, but it was removed from the critical attack-data path because reliable exports could not be produced. This avoided allowing one unstable component to block the project.</p></article>
+          <article><div class="phase">OT Safety</div><h3>Writes needed a guaranteed rollback</h3><p>The Modbus action was separated into baseline, write, and restore modules. Explicit confirmation and exact baseline selection reduce accidental changes and make every test easier to audit.</p></article>
+          <article><div class="phase">Segmentation</div><h3>Attack access had to be narrow</h3><p>pfSense was validated with both a successful approved connection to Conpot on port 502 and an unsuccessful connection to an unrelated IT service on port 80.</p></article>
+        </div>
+      </section>
+
+      <section id="status">
+        <h2>End-of-Week Status</h2>
+        <div class="grid two">
+          <div class="card"><h3>Completed</h3><ul><li>Sysmon endpoint deployment</li><li>Source-initiated WEF validation</li><li>Event IDs 3, 11, 13, and 22 confirmed</li><li>Sandworm ATT&CK mapping finalized</li><li>Allowed and blocked network paths validated</li><li>OT baseline/write/restore workflow operational</li><li>PowerShell orchestration operational</li></ul></div>
+          <div class="card"><h3>Next Steps</h3><ul><li>Export Sysmon locally during baseline and attack runs</li><li>Implement the Windows-side Sandworm-inspired sequence</li><li>Create disposable data for safe-wiper testing</li><li>Capture synchronized Windows, Conpot, Linux, and PCAP evidence</li><li>Run the full IT-to-OT chain</li><li>Defer AI detection and automated response until attack telemetry is stable</li></ul></div>
+        </div>
+      </section>
+    </div>
+    <footer>Project Janus · Week 2 Documentation · Josiah Rhee · Technology Advancement Center</footer>
+  </main>
+</div>
+<script>document.querySelectorAll('nav a').forEach(a=>a.addEventListener('click',()=>document.querySelector('aside').classList.remove('open')))</script>
+</body>
+</html>

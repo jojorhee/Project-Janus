@@ -1,0 +1,11 @@
+{
+  "capture_timestamp_utc": "2026-07-23T15:00:23Z",
+  "target": {
+    "ip": "10.10.20.10",
+    "port": 502,
+    "unit_id": 1
+  },
+  "coils": {
+    "1": false
+  }
+}

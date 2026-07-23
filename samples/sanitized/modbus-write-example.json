@@ -1,0 +1,14 @@
+{
+  "timestamp_utc": "2026-07-23T15:00:55Z",
+  "baseline_file": "C:\\CyberRangers\\Evidence\\baseline\\normalized\\modbus-baseline-20260723T150023Z.json",
+  "target": {
+    "ip": "10.10.20.10",
+    "port": 502,
+    "unit_id": 1
+  },
+  "coil": 1,
+  "original_value": false,
+  "requested_value": true,
+  "readback_value": true,
+  "verified": true
+}
