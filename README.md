@@ -4,9 +4,10 @@
 
 Project Janus is a small, script-driven purple-team lab that is being developed during an internship at the **Technology Advancement Center (TAC)**. The project is designed to automate a mapped adversary attack, collect the resulting telemetry, use a large language model to generate detection rules and a threat-intelligence report, and ultimately close the loop by automatically blocking the attacker when a validated rule fires.
 
-> **Current status:** Phase 1 — Infrastructure and baseline telemetry  
+> **Current status:** Week 2 — Telemetry, segmentation validation, and OT attack scripting  
 > **Author:** Josiah Rhee  
 > **Organization:** Technology Advancement Center  
+> **Internship period:** July 26–August 26, 2026
 
 ## Project Goals
 
@@ -36,9 +37,13 @@ The following infrastructure has been deployed and validated:
 - [x] Baseline Modbus traffic captured with `tcpdump`
 - [x] Conpot and Linux telemetry collected
 - [x] Kali Linux attacker VM configured
-- [x] Initial Sandworm ATT&CK mapping created
-- [ ] Sysmon and Windows Event Forwarding
-- [ ] Scripted attack execution
+- [x] Sandworm ATT&CK mapping completed
+- [x] Sysmon 15.2 deployed on the Windows endpoint
+- [x] Source-initiated Windows Event Forwarding validated
+- [x] Allowed TCP/502 and blocked TCP/80 paths validated
+- [x] Safe Modbus baseline, write, and restore workflow completed
+- [x] PowerShell OT orchestration script completed
+- [ ] Full Windows and OT attack-chain execution
 - [ ] Automated log harvesting
 - [ ] LLM-assisted detection generation
 - [ ] CTI-report generation
@@ -116,7 +121,7 @@ The mapping is intended to guide:
 - CTI-report structure
 - Validation of defensive coverage
 
-Only safe, low-impact techniques will be executed inside the isolated lab. The mapping and scripts are works in progress and should not be treated as a complete reproduction of a real intrusion.
+Only safe, low-impact techniques will be executed inside the isolated lab. The mapping is complete, and the first safe OT action scripts are working. The full Windows-to-OT attack chain is still in development and should not be treated as a complete reproduction of a real intrusion.
 
 ## Planned Workflow
 
@@ -126,16 +131,16 @@ Deploy the lab, validate segmentation and domain services, operate Conpot, gener
 
 ### Phase 2 — Endpoint and Network Visibility
 
-Install and configure Sysmon and Windows Event Forwarding, standardize timestamps, and centralize Windows, Linux, honeypot, and packet-capture data.
+Sysmon 15.2 and source-initiated Windows Event Forwarding have been implemented and validated. Current work focuses on reliable export, timestamp standardization, and combining Windows, Linux, honeypot, and packet-capture evidence.
 
 ### Phase 3 — Automated Attack Execution
 
-Develop controlled Python modules for selected IT and OT techniques. Planned tools may include:
+The OT baseline, controlled coil-write, restoration, and PowerShell orchestration components are complete. The next step is integrating them with the planned Windows attack path. Tools include or may include:
 
 - Paramiko for SSH-controlled execution
 - Scapy for crafted network traffic
 - PowerShell for controlled Windows living-off-the-land behavior
-- `pymodbus` or Scapy for unauthorized Modbus operations
+- `pymodbus` for controlled, allowlisted Modbus operations
 
 ### Phase 4 — AI-Assisted Detection Engineering
 
@@ -165,7 +170,7 @@ Replay a controlled attack, trigger a validated detection, and use the pfSense A
 - Evaluation of LLM strengths and limitations
 - Final project website and presentation
 
-## Repository Structure (In Progress)
+## Repository Structure
 
 ```text
 project-janus/
@@ -203,6 +208,19 @@ project-janus/
 └── requirements.txt
 ```
 
+Only add folders when they contain useful work. Empty placeholder folders can be avoided until the related phase begins.
+
+## Safety and Authorization
+
+This project is intended exclusively for an isolated, authorized laboratory environment.
+
+- Do not run attack scripts against systems outside the lab.
+- Do not commit passwords, API keys, tokens, private certificates, or production configuration exports.
+- Do not publish unredacted logs containing personal or organizational information.
+- Do not upload full virtual-machine disks, licensed operating-system images, or proprietary TAC material.
+- Sanitize packet captures and configuration files before publication.
+- Keep offensive scripts clearly labeled and limited to approved targets.
+
 ## Installation and Reproduction
 
 Full reproduction instructions will be added as scripts and configurations are finalized. The current lab requires:
@@ -217,12 +235,13 @@ Full reproduction instructions will be added as scripts and configurations are f
 - Conpot
 - Python 3
 - `pymodbus`
+- `tcpdump`
 
 Specific software versions, VM resources, network-adapter assignments, and installation steps will be documented as the project progresses.
 
 ## Documentation
 
-The current infrastructure documentation is available in the `docs/` directory (not quite yet). It includes:
+The current infrastructure documentation is available in the `docs/` directory. It includes:
 
 - Network architecture
 - VM inventory
@@ -242,3 +261,11 @@ The current infrastructure documentation is available in the `docs/` directory (
 - No AI-generated detection should be considered valid until tested.
 - Automatic pfSense response has not yet been implemented.
 - Conpot provides a simplified honeypot rather than a full physical-process simulation.
+
+## License
+
+A license has not yet been selected. Before making the repository public, confirm with TAC whether the project may be published and which license is appropriate.
+
+## Acknowledgments
+
+Developed by **Josiah Rhee** during an internship with the **Technology Advancement Center**.
