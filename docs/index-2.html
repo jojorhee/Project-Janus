@@ -25,6 +25,7 @@
     <div class="brand"><div class="mark">J</div><div><strong>Project Janus</strong><small>Week 2 documentation</small></div></div>
     <nav>
       <a href="#overview">Overview</a>
+      <a href="#snapshot">At a Glance</a>
       <a href="#outcomes">Week Outcomes</a>
       <a href="#telemetry">Sysmon & WEF</a>
       <a href="#network">Network Validation</a>
@@ -40,11 +41,40 @@
     <header class="hero" id="overview">
       <div class="eyebrow">Purple-Team Internship Project · Week 2</div>
       <h1>Visibility to Action</h1>
-      <p>Week 2 advanced Project Janus from a working virtual lab into a monitored and script-driven test environment. The main work included deploying Sysmon, validating Windows Event Forwarding, finalizing the Sandworm attack mapping, confirming segmented network access, and building a controlled Modbus baseline–write–restore workflow.</p>
+      <p><strong>Project Janus</strong> is a script-driven purple-team lab that recreates a safe Sandworm-inspired path from Windows activity into a controlled OT action. Week 2 added endpoint telemetry, validated segmented access, and completed the reversible Modbus baseline–write–restore workflow.</p>
       <div class="meta"><span class="chip">Josiah Rhee</span><span class="chip">Technology Advancement Center</span><span class="chip">July 19–23, 2026</span><span class="chip">Sysmon · WEF · PowerShell · Python · Modbus</span></div>
     </header>
 
     <div class="content">
+      <section id="snapshot">
+        <h2>Project Snapshot</h2>
+        <p class="section-lead">Everything needed to understand the project and Week 2 is summarized here before the detailed evidence.</p>
+        <div class="grid two">
+          <div class="card">
+            <h3>What Project Janus Does</h3>
+            <p>Janus builds a small purple-team lab that maps a real Sandworm campaign into safe, reversible attack actions across segmented IT and OT networks. The long-term goal is to collect telemetry, generate detections and threat intelligence, and automatically block the attacker when a validated rule fires.</p>
+          </div>
+          <div class="card">
+            <h3>What Changed in Week 2</h3>
+            <p>Sysmon was deployed on the Windows endpoint, WEF was validated, the Sandworm mapping was finalized, firewall rules were tested with both allowed and blocked paths, and the OT action workflow was completed.</p>
+          </div>
+        </div>
+        <div class="grid three" style="margin-top:18px">
+          <div class="card metric"><strong>4</strong><span>Confirmed Sysmon event IDs: 3, 11, 13, 22</span></div>
+          <div class="card metric"><strong>5</strong><span>OT automation files: 4 Python modules + 1 PowerShell orchestrator</span></div>
+          <div class="card metric"><strong>2</strong><span>Firewall paths proven: TCP/502 allowed, TCP/80 blocked</span></div>
+        </div>
+        <div class="table-wrap card" style="margin-top:18px">
+          <table><thead><tr><th>Area</th><th>Week 2 Result</th><th>Status</th></tr></thead><tbody>
+            <tr><td>Windows visibility</td><td>Sysmon operational; WEF source active and forwarding to Windows Server</td><td><span class="status complete">Complete</span></td></tr>
+            <tr><td>Threat emulation plan</td><td>Sandworm-inspired IT-to-OT chain finalized; initial access and web shell intentionally excluded</td><td><span class="status complete">Complete</span></td></tr>
+            <tr><td>OT action</td><td>Baseline, controlled coil write, evidence capture, and exact-state restoration</td><td><span class="status complete">Complete</span></td></tr>
+            <tr><td>Next milestone</td><td>Implement and run the Windows-side attack sequence, then capture synchronized telemetry</td><td><span class="status planned">Next</span></td></tr>
+          </tbody></table>
+        </div>
+        <div class="callout" style="margin-top:18px"><strong>Presentation takeaway:</strong> Week 2 moved Janus from infrastructure setup into measurable purple-team execution: the lab can now observe Windows behavior, enforce narrow network access, and perform a reversible OT action with saved evidence.</div>
+      </section>
+
       <section id="outcomes">
         <h2>Week 2 Outcomes</h2>
         <p class="section-lead">The week focused on endpoint visibility, controlled attack preparation, and validating that pfSense permits only the traffic required by the planned emulation.</p>
