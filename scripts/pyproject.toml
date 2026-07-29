@@ -1,0 +1,9 @@
+[project]
+name = "sandworm-emulation"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "pymodbus>=3.14.0",
+]
