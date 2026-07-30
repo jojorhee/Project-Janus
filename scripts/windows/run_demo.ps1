@@ -1,1 +1,0 @@
-# Merge of WIndows discovery and target discovery and DC remoting test and valudate Windows results
