@@ -1,0 +1,7 @@
+Assumed Kali/RDP foothold
+→ PowerShell system/domain discovery
+→ Assumed privileged domain access
+→ Connect to Windows Admin via WinRM
+→ Send wiper script from Server to client
+→ Marker-protected simulated wiper executes
+→ Dummy files are deleted

