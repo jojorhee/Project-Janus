@@ -5,5 +5,3 @@ Assumed Kali/RDP foothold
 → Send wiper script from Server to client
 → Marker-protected simulated wiper executes
 → Dummy files are deleted
-
-Run during Win Server WinRM access: Copy-Item -Path "C:\CyberRangers\payload\simulated_wiper.ps1" -Destination "\\purplelab.local\NETLOGON" -FromSession $Session
