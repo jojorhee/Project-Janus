@@ -1,58 +1,62 @@
-"""
-Read approved Conpot holding registers and save their original values.
+"""Read approved Conpot coils and save a run-scoped state record.
+
+Usage:
+    py modbus_baseline.py run-001 pre-write
+    py modbus_baseline.py run-001 post-write
+    py modbus_baseline.py run-001 post-restore
 
 This script performs no Modbus writes.
 """
 
 import json
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from modbus_client import SafeModbusClient, configure_logging, load_config
+from modbus_client import (
+    SafeModbusClient,
+    build_run_paths,
+    configure_logging,
+    load_config,
+    require_unused_output,
+)
 
 
-# TODO 1:
-# Find the project root based on this script's location.
-# Hint: this file is in project_root/ot/, so use Path(__file__).resolve().
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-
-
-# TODO 2:
-# Build the path to config/lab.json.
 CONFIG_PATH = PROJECT_ROOT / "config" / "lab.json"
 
 
-def build_output_path(config: dict, timestamp: str) -> Path:
-    """
-    Return a path like:
-    C:\\CyberRange\\Evidence\\baseline\\normalized\\modbus-baseline-<timestamp>.json
+STAGE_FILENAMES = {
+    "pre-write": "01-pre-write-state",
+    "post-write": "03-post-write-verification",
+    "post-restore": "05-post-restore-verification",
+}
 
-    Why timestamped?
-    Each baseline capture remains separate and can later be compared with attack data.
-    """
-    # Get the Windows evidence root and baseline folder from lab.json.
-    # Add "normalized" because this JSON is AI-ready structured data.
-    # Use config["modbus"]["baseline_filename_prefix"] for the filename.
-    evidence_root = Path(config["evidence"]["windows_root"]) 
-    baseline_folder = config["evidence"]["baseline_folder"]
-    normalized_folder = config["evidence"]["normalized_folder"]
-    prefix = config["modbus"]["baseline_filename_prefix"]
-    
-    return (
-        evidence_root
-        / baseline_folder 
-        / normalized_folder 
-        / f"{prefix}-{timestamp}.json"
-    )
+
+def load_json(path: Path) -> dict:
+    """Load one required earlier record from the same run."""
+    if not path.is_file():
+        raise FileNotFoundError(f"Required run evidence not found: {path}")
+    with path.open(encoding="utf-8") as file:
+        return json.load(file)
+
+
+def get_run_and_stage() -> tuple[str, str]:
+    """Require an explicit run ID and approved read stage."""
+    if len(sys.argv) != 3 or sys.argv[2] not in STAGE_FILENAMES:
+        stages = "|".join(STAGE_FILENAMES)
+        raise SystemExit(
+            f"Usage: py modbus_baseline.py <run-###> <{stages}>"
+        )
+    return sys.argv[1], sys.argv[2]
 
 def main() -> None:
-    """Connect, collect approved register values, and save them."""
+    """Connect, collect approved coil values, and save them."""
     config = load_config(CONFIG_PATH)
-
-    # Use UTC in the file so timestamps are unambiguous across systems.
-    timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-
-    output_path = build_output_path(config, timestamp)
+    run_id, stage = get_run_and_stage()
+    run_paths = build_run_paths(config, run_id)
+    output_path = run_paths["raw"] / f"{STAGE_FILENAMES[stage]}.json"
+    require_unused_output(output_path)
 
     # This is a human-readable script action log, separate from the baseline JSON.
     log_path = output_path.with_suffix(".log")
@@ -62,6 +66,8 @@ def main() -> None:
 
     # The JSON will use string keys because JSON object keys are strings.
     baseline = {
+        "run_id": run_id,
+        "stage": stage,
         "capture_timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "target": {
             "ip": client.host,
@@ -74,11 +80,6 @@ def main() -> None:
     try:
         client.connect()
 
-        # TODO 3:
-        # Loop through client.allowed_registers in sorted order.
-        # For each address:
-        #   - call client.read_holding_register(address)
-        #   - save it as baseline["holding_registers"][str(address)]
         for coil in client.allowed_coils:
             read_coil = client.read_coil(coil)
             baseline["coils"][str(coil)] = read_coil
@@ -87,15 +88,33 @@ def main() -> None:
         # Always close the TCP connection, including when a read fails.
         client.close()
 
-    # TODO 4:
-    # Create output_path.parent, then write baseline as formatted JSON.
-    # Use encoding="utf-8" and indent=2.
-    output_path.parent.mkdir(parents=True, exist_ok=True)
-    
+    # The two verification stages independently compare current coil state with
+    # an earlier record from this same run.
+    if stage == "post-write":
+        source_path = run_paths["raw"] / "02-write-result.json"
+        write_result = load_json(source_path)
+        if write_result.get("run_id") != run_id:
+            raise ValueError("Write-result run ID does not match this run.")
+        expected = {str(write_result["coil"]): write_result["requested_value"]}
+        baseline["verification_source"] = str(source_path)
+        baseline["expected_coils"] = expected
+        baseline["verified"] = baseline["coils"] == expected
+    elif stage == "post-restore":
+        source_path = run_paths["raw"] / "01-pre-write-state.json"
+        pre_write = load_json(source_path)
+        if pre_write.get("run_id") != run_id:
+            raise ValueError("Pre-write state run ID does not match this run.")
+        expected = pre_write["coils"]
+        baseline["verification_source"] = str(source_path)
+        baseline["expected_coils"] = expected
+        baseline["verified"] = baseline["coils"] == expected
+
     with output_path.open("w", encoding="utf-8") as file:
         json.dump(baseline, file, indent=2)
 
-    #print(f"Baseline saved: {output_path.parent / 'baseline.json'}")
+    print(f"{stage} evidence saved: {output_path}")
+    if stage != "pre-write" and not baseline["verified"]:
+        raise RuntimeError(f"{stage} verification failed; inspect {output_path}")
 
 
 if __name__ == "__main__":

@@ -7,11 +7,14 @@ param(
     [datetime]$EndTime,#>
 
     [Parameter(Mandatory)]
-    [string]$OutputDirectory
-)
+    [string]$OutputDirectory,
 
-$StartTime = (Get-Date).AddMinutes(-1)
-$EndTime = (Get-Date).AddMinutes(1)
+    [Parameter(Mandatory)]
+    [datetime]$StartTime,
+
+    [Parameter(Mandatory)]
+    [datetime]$EndTime
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -19,6 +22,12 @@ $ErrorActionPreference = 'Stop'
 if ($EndTime -le $StartTime) {
     throw "EndTime must be later than StartTime."
 }
+
+$QueryStart = $StartTime.AddSeconds(-10);
+$QueryEnd = $EndTime.AddSeconds(10);
+
+$StartTime = $QueryStart
+$EndTime = $QueryEnd
 
 if(!(Test-Path -Path $OutputDirectory)) {
     New-Item -Path $OutputDirectory -ItemType Directory
@@ -45,7 +54,7 @@ foreach ($Log in $Logs) {
 
     if ($Events) {
         # Export fields. Message is expanded to full text.
-        $Events | Select-Object TimeCreated, LogName, Id, MachineName, Message | 
+        $Events | Select-Object TimeCreated, LogName, Id, RecordId, MachineName, ProviderName, UserId, Message | 
             Export-Csv -Path $CsvPath -NoTypeInformation -Encoding UTF8
             
         Write-Host "Successfully exported $($Events.Count) events to $CsvPath" -ForegroundColor Green

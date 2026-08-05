@@ -1,12 +1,11 @@
-"""Restore allowlisted Conpot coil values from one exact baseline capture.
+r"""Restore allowlisted Conpot coil values from one exact baseline capture.
 
 Usage (run from the Windows client):
-    py .\modbus_restore.py "C:\\CyberRange\\Evidence\\baseline\\normalized\\modbus-baseline-...json"
+    py .\modbus_restore.py run-001
 
-This script does not select a "latest" baseline automatically.  The operator
-must supply the exact pre-write baseline that recorded the values to restore.
-That makes the restoration reference explicit and preserves older baseline
-captures for later behavioral analysis.
+This script does not select a "latest" baseline automatically. The operator
+must supply the numbered run containing the exact pre-write state. This prevents
+restoring from an unrelated baseline capture.
 """
 
 import json
@@ -14,7 +13,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from modbus_client import SafeModbusClient, configure_logging, load_config
+from modbus_client import (
+    SafeModbusClient,
+    build_run_paths,
+    configure_logging,
+    load_config,
+    require_unused_output,
+)
 
 
 # This file is <project root>/ot/modbus_restore.py.  Building paths from the
@@ -24,22 +29,15 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CONFIG_PATH = PROJECT_ROOT / "config" / "lab.json"
 
 
-def get_baseline_path() -> Path:
-    """Read and validate the required exact baseline-file argument."""
+def get_run_id() -> str:
+    """Read the required numbered run argument."""
     if len(sys.argv) != 2:
-        raise SystemExit(
-            "Usage: py modbus_restore.py <exact-baseline-json-path>"
-        )
-
-    baseline_path = Path(sys.argv[1]).expanduser().resolve()
-    if not baseline_path.is_file():
-        raise FileNotFoundError(f"Baseline file not found: {baseline_path}")
-
-    return baseline_path
+        raise SystemExit("Usage: py modbus_restore.py <run-###>")
+    return sys.argv[1]
 
 
 def load_and_validate_baseline(
-    baseline_path: Path, client: SafeModbusClient
+    baseline_path: Path, client: SafeModbusClient, run_id: str
 ) -> dict[int, bool]:
     """Return baseline coil values after strict target and allowlist checks.
 
@@ -49,6 +47,9 @@ def load_and_validate_baseline(
     """
     with baseline_path.open(encoding="utf-8") as file:
         baseline = json.load(file)
+
+    if baseline.get("run_id") != run_id or baseline.get("stage") != "pre-write":
+        raise ValueError("Baseline must be the pre-write state from this run.")
 
     expected_target = {
         "ip": client.host,
@@ -94,29 +95,20 @@ def load_and_validate_baseline(
     return restored_values
 
 
-def build_output_path(config: dict, timestamp: str) -> Path:
-    """Build a separate JSON evidence path for the restoration result."""
-    return (
-        Path(config["evidence"]["windows_root"])
-        / config["evidence"]["attack_folder"]
-        / config["evidence"]["normalized_folder"]
-        / f"modbus-restore-{timestamp}.json"
-    )
-
-
 def main() -> None:
     """Confirm, restore every saved coil value, read back, and save evidence."""
     config = load_config(CONFIG_PATH)
-    baseline_path = get_baseline_path()
-
-    timestamp_for_file = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    output_path = build_output_path(config, timestamp_for_file)
+    run_id = get_run_id()
+    run_paths = build_run_paths(config, run_id)
+    baseline_path = run_paths["raw"] / "01-pre-write-state.json"
+    output_path = run_paths["raw"] / "04-restore-result.json"
+    require_unused_output(output_path)
     logger = configure_logging(output_path.with_suffix(".log"))
     client = SafeModbusClient(config, logger)
 
     # Validate everything before the confirmation prompt and before opening a
     # TCP connection.  This way a bad file can never cause a partial restore.
-    saved_coils = load_and_validate_baseline(baseline_path, client)
+    saved_coils = load_and_validate_baseline(baseline_path, client, run_id)
 
     print(f"Baseline: {baseline_path}")
     for address, original_value in sorted(saved_coils.items()):
@@ -129,6 +121,7 @@ def main() -> None:
         return
 
     result = {
+        "run_id": run_id,
         "timestamp_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "baseline_file": str(baseline_path),
         "target": {

@@ -3,9 +3,13 @@
 import ipaddress
 import json
 import logging
+import re
 from pathlib import Path
 
 from pymodbus.client import ModbusTcpClient
+
+
+RUN_ID_PATTERN = re.compile(r"run-\d{3,}")
 
 
 def load_config(config_path: str | Path) -> dict:
@@ -44,6 +48,43 @@ def configure_logging(log_path: str | Path) -> logging.Logger:
         format="%(asctime)s | %(levelname)s | %(message)s",
     )
     return logging.getLogger("modbus_lab")
+
+
+def build_run_paths(config: dict, run_id: str) -> dict[str, Path]:
+    """Create and return the evidence folders for one numbered OT run."""
+    if not RUN_ID_PATTERN.fullmatch(run_id):
+        raise ValueError("Run ID must use the format run-001.")
+
+    evidence = config["evidence"]
+    run_root = (
+        Path(evidence["windows_root"])
+        / evidence["ot_folder"]
+        / evidence["runs_folder"]
+        / run_id
+    )
+    paths = {
+        "root": run_root,
+        "raw": run_root / evidence["raw_folder"],
+        "metadata": run_root / evidence["metadata_folder"],
+        "screenshots": run_root / evidence["screenshots_folder"],
+        "derived": run_root / evidence["derived_folder"],
+    }
+
+    for path in paths.values():
+        path.mkdir(parents=True, exist_ok=True)
+
+    return paths
+
+
+def require_unused_output(output_path: str | Path) -> None:
+    """Protect raw evidence from accidental overwrite or log appending."""
+    path = Path(output_path)
+    existing = [candidate for candidate in (path, path.with_suffix(".log")) if candidate.exists()]
+    if existing:
+        files = ", ".join(str(candidate) for candidate in existing)
+        raise FileExistsError(
+            f"Raw evidence already exists ({files}). Use a new run ID."
+        )
 
 
 class SafeModbusClient:

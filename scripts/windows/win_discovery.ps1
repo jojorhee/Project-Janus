@@ -10,7 +10,11 @@
 param(
     [Parameter(Mandatory)]
     [ValidateNotNullOrEmpty()]
-    [string]$OutputDirectory
+    [string]$OutputDirectory,
+
+    [Parameter(Mandatory)]
+    [ValidatePattern('^run-\d{3,}$')]
+    [string]$RunId
 )
 
 Set-StrictMode -Version Latest
@@ -37,19 +41,26 @@ if (-not (Test-Path -LiteralPath $OutputDirectory -PathType Container)) {
 
 $evidenceParent = (Resolve-Path -LiteralPath $OutputDirectory).Path
 $startedUtc = (Get-Date).ToUniversalTime()
-$safeHostName = $env:COMPUTERNAME -replace '[^a-zA-Z0-9._-]', '_'
-$runId = 'windows-discovery_{0}_{1}' -f `
-    $safeHostName, $startedUtc.ToString('yyyyMMddTHHmmssfffZ')
-$runDirectory = Join-Path $evidenceParent $runId
 
-New-Item -ItemType Directory -Path $runDirectory -ErrorAction Stop |
-    Out-Null
+
+<#$safeHostName = $env:COMPUTERNAME -replace '[^a-zA-Z0-9._-]', '_'
+$runId = 'windows-discovery_{0}_{1}' -f `
+$safeHostName, $startedUtc.ToString('yyyyMMddTHHmmssfffZ')
+$runDirectory = Join-Path $evidenceParent $runId
+New-Item -ItemType Directory -Path $runDirectory -ErrorAction Stop | Out-Null#>
+New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+$runDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
+
+$metadataPath = Join-Path $runDirectory "00_run-metadata.json"
+if(Test-Path $metadataPath) {
+    throw "Discovery evidence already exists. Use a new run ID"
+}
 
 # Record basic run context.
 $metadata = [ordered]@{
     project        = 'Project Janus'
     script         = 'win_discovery.ps1'
-    run_id         = $runId
+    run_id         = $RunId
     started_utc    = $startedUtc.ToString('o')
     collector_host = $env:COMPUTERNAME
     collector_user = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
@@ -58,7 +69,7 @@ $metadata = [ordered]@{
 }
 
 Write-EvidenceJson -Data $metadata `
-    -Path (Join-Path $runDirectory '00_run-metadata.json')
+    -Path $metadataPath
 
 # Collect only the host/domain facts useful to this IT scenario.
 $computerSystem = Get-CimInstance -ClassName Win32_ComputerSystem
@@ -75,7 +86,7 @@ $domainInfo = [ordered]@{
 }
 
 Write-EvidenceJson -Data $domainInfo `
-    -Path (Join-Path $runDirectory '04_domain.json')
+    -Path (Join-Path $runDirectory '01_domain.json')
 
 # Record the current identity and whether it already has local admin rights.
 $identity = [System.Security.Principal.WindowsIdentity]::GetCurrent()
@@ -93,7 +104,7 @@ $privilegeInfo = [ordered]@{
 }
 
 Write-EvidenceJson -Data $privilegeInfo `
-    -Path (Join-Path $runDirectory '03_privileges.json')
+    -Path (Join-Path $runDirectory '02_privileges.json')
 
 $serverFqdn = $null
 
@@ -130,7 +141,7 @@ else {
 }
 
 Write-EvidenceJson -Data $domainControllerInfo `
-    -Path (Join-Path $runDirectory '05_domain-controller.json')
+    -Path (Join-Path $runDirectory '03_domain-controller.json')
 
 Write-Host "Discovery complete: $runDirectory"
 
