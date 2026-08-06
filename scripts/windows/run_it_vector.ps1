@@ -155,9 +155,12 @@ function Export-FileInventory {
 # -------------------------
 
 $RunStarted = Get-Date
+$AttributionStart = $RunStarted.AddMinutes(-15)
 $RunEnded = $null
 $AttackStart = $null
 $AttackEnd = $null
+$RdpSourceIps = @()
+$ProposedBlockMinutes = 15
 
 $RunStatus = "FAILED"
 $CleanupStatus = "NOT_RUN"
@@ -187,6 +190,54 @@ try {
     # Capture current RDP/session context.
     & quser.exe 2>&1 |
         Set-Content (Join-Path $ClientRoot "00-rdp-session.txt")
+
+    # Capture the live RDP TCP peer without assuming or hardcoding Kali's IP.
+    # This is response enrichment only; it is not part of detection logic.
+    try {
+        $RdpConnections = @(
+            Get-NetTCPConnection -LocalPort 3389 -State Established `
+                -ErrorAction Stop
+        )
+    }
+    catch {
+        $RdpConnections = @()
+        Write-Warning "Unable to inspect active RDP connections: $($_.Exception.Message)"
+    }
+
+    if ($RdpConnections.Count -gt 0) {
+        $RdpCapturedUtc = (Get-Date).ToUniversalTime().ToString("o")
+        $CurrentUser = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
+        $RdpConnectionPath = Join-Path $ClientRoot "00-rdp-connections.csv"
+
+        $RdpConnections |
+            ForEach-Object {
+                [PSCustomObject]@{
+                    captured_utc = $RdpCapturedUtc
+                    host          = $env:COMPUTERNAME
+                    user          = $CurrentUser
+                    State         = $_.State
+                    LocalAddress  = $_.LocalAddress
+                    LocalPort     = $_.LocalPort
+                    RemoteAddress = $_.RemoteAddress
+                    RemotePort    = $_.RemotePort
+                    OwningProcess = $_.OwningProcess
+                }
+            } |
+            Export-Csv $RdpConnectionPath -NoTypeInformation -Encoding UTF8
+
+        $RdpSourceIps = @(
+            $RdpConnections |
+                Select-Object -ExpandProperty RemoteAddress -Unique
+        )
+
+        Add-RunEvent "rdp_attribution" "CAPTURED" `
+            "Observed active RDP source(s): $($RdpSourceIps -join ', ')"
+    }
+    else {
+        Write-Warning "No active RDP TCP source was observed; attribution may remain unresolved."
+        Add-RunEvent "rdp_attribution" "UNRESOLVED" `
+            "No established connection to local TCP port 3389 was observed."
+    }
 
     # Record target files before attack activity.
     Export-FileInventory `
@@ -252,6 +303,7 @@ try {
         & $ExportScript `
             -StartTime $AttackStart `
             -EndTime $AttackEnd `
+            -AttributionStartTime $AttributionStart `
             -OutputDirectory $ClientRoot
     }
 
@@ -345,6 +397,13 @@ finally {
         "not-recorded"
     }
 
+    $RdpSourceText = if ($RdpSourceIps.Count -gt 0) {
+        $RdpSourceIps -join ", "
+    }
+    else {
+        "unresolved"
+    }
+
     $Notes = @"
 Project Janus - IT Run Notes
 
@@ -356,6 +415,8 @@ Run started UTC: $($RunStarted.ToUniversalTime().ToString("o"))
 Run ended UTC: $($RunEnded.ToUniversalTime().ToString("o"))
 Attack started UTC: $AttackStartText
 Attack ended UTC: $AttackEndText
+RDP attribution window UTC: $($AttributionStart.ToUniversalTime().ToString("o")) to $AttackEndText
+Observed active RDP source IP(s): $RdpSourceText
 
 Initiating host: $env:COMPUTERNAME
 Initiating user: $([System.Security.Principal.WindowsIdentity]::GetCurrent().Name)
@@ -369,7 +430,14 @@ Required behavior:
 - Separate powershell.exe wiper process
 - Local disposable-file deletion
 - Exact-time Sysmon and PowerShell event export
+- RDP source attribution from active TCP, Security 4624, or optional Event 1149
 - Lab cleanup after operator approval
+
+Safe response candidate:
+- Alert and preserve evidence
+- If attribution is valid, request analyst approval for a temporary
+  ${ProposedBlockMinutes}-minute pfSense source-IP block
+- Never block a hardcoded address or act when attribution is unresolved
 
 Failure: $FailureMessage
 "@

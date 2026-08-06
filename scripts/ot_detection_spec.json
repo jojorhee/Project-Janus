@@ -1,0 +1,227 @@
+{
+  "schema_version": "2.0",
+  "spec_id": "janus-ot-write-single-coil-v2",
+  "supersedes": "janus-ot-write-single-coil-v1",
+  "title": "Modbus Write Single Coil Detection for Monitored Conpot Endpoint",
+  "artifact_role": "authoritative_ot_detection_specification",
+  "lifecycle_status": "VERIFIED",
+  "last_updated_utc": "2026-08-05",
+  "approval": {
+    "design_approved": true,
+    "design_approver_role": "project_owner",
+    "design_approval_date_utc": "2026-08-05",
+    "evidence_approval": "pending",
+    "generation_authorization": false,
+    "blocking_condition": "Confirm the required packet fields in the canonical OT PCAP and resolve all blocking evidence findings."
+  },
+  "purpose": "Define the exact OT network behavior that a later candidate detection must identify, without treating a coil write alone as proof of malicious intent.",
+  "scope": {
+    "environment": "authorized Project Janus lab only",
+    "monitored_asset": {
+      "role": "Conpot OT endpoint",
+      "ipv4": "10.10.20.10",
+      "transport": "tcp",
+      "port": 502
+    },
+    "expected_simulated_action_source": "10.10.10.30",
+    "detection_source_restriction": null,
+    "in_scope_activity": "Modbus Write Single Coil request using function code 5",
+    "out_of_scope_activity": [
+      "Modbus reads",
+      "Modbus Write Multiple Coils using function code 15",
+      "Modbus register writes",
+      "Modbus function-code-5 responses from the monitored endpoint",
+      "function-code-5 requests to other destinations",
+      "claims of malicious intent based only on a write",
+      "AI rule generation",
+      "rule deployment",
+      "firewall response"
+    ]
+  },
+  "detection_behavior": {
+    "plain_language": "Generate one alert for each Modbus function-code-5 request sent from any source to 10.10.20.10 on TCP port 502.",
+    "required_semantics": {
+      "action": "alert",
+      "network_direction": "to_server",
+      "message_type": "request",
+      "destination_ipv4": "10.10.20.10",
+      "destination_tcp_port": 502,
+      "modbus_function_code": 5,
+      "source_ipv4": "any"
+    },
+    "prohibited_match_restrictions": [
+      "source IP 10.10.10.30 or any other fixed source",
+      "coil address",
+      "coil value",
+      "Modbus unit ID",
+      "arbitrary raw-payload content"
+    ],
+    "prohibited_behavior": [
+      "drop or reject traffic",
+      "match responses from Conpot",
+      "match function codes other than 5",
+      "match function-code-5 requests to destinations other than 10.10.20.10:502"
+    ],
+    "rationale": "The observed baseline contains reads only, so a single-coil control write is the relevant behavior. Leaving the source, coil address, value, and unit ID unrestricted avoids overfitting the detection to one rehearsed transaction."
+  },
+  "evidence_requirements": {
+    "authoritative_network_evidence": {
+      "evidence_id": "ot-canonical-validation-pcap",
+      "file_name": null,
+      "sha256": null,
+      "sha256_format": "64 lowercase hexadecimal characters",
+      "status": "pending"
+    },
+    "supporting_context": [
+      "write JSON output",
+      "verification JSON output",
+      "restore JSON output",
+      "run_notes.txt"
+    ],
+    "pcap_confirmation_required": [
+      "controlled action is a request toward 10.10.20.10",
+      "transport destination is TCP port 502",
+      "Modbus function code is 5",
+      "wire-level coil address is recorded as context",
+      "encoded coil value is recorded as context",
+      "source IP is 10.10.10.30 for the demonstrated controlled action",
+      "destination IP is 10.10.20.10",
+      "restoration is also a function-code-5 request",
+      "capture interface and location are recorded",
+      "whether the capture observes both request and response is recorded"
+    ],
+    "context_fields_not_used_for_matching": [
+      "wire-level coil address",
+      "encoded coil value",
+      "Modbus unit ID"
+    ],
+    "evidence_boundary": "Script JSON describes intended and reported behavior; the canonical PCAP provides packet-level proof. Address, value, and unit ID must be extracted from the PCAP or correlated Modbus transaction evidence rather than assumed to appear in an alert."
+  },
+  "validation_requirements": {
+    "response_enabled": false,
+    "unique_alert_identity": [
+      "detection identifier or SID",
+      "flow_id",
+      "tx_id when available",
+      "request timestamp_utc",
+      "PCAP packet reference"
+    ],
+    "correlation": {
+      "timezone": "UTC",
+      "timestamp_format": "ISO 8601",
+      "clock_sources": null,
+      "maximum_timestamp_tolerance_seconds": null,
+      "method": "Correlate the PCAP, write JSON, restore JSON, and alert evidence using transaction identifiers where available and timestamps within the documented tolerance.",
+      "status": "pending_run_documentation"
+    },
+    "test_matrix": [
+      {
+        "test_id": "OT-BASELINE-READS",
+        "traffic": "Baseline Modbus reads to 10.10.20.10:502",
+        "expected_unique_alerts": 0,
+        "evidence_type": "canonical_baseline"
+      },
+      {
+        "test_id": "OT-CONTROLLED-WRITE",
+        "traffic": "Controlled function-code-5 request to 10.10.20.10:502",
+        "expected_unique_alerts": 1,
+        "evidence_type": "canonical_validation_run"
+      },
+      {
+        "test_id": "OT-RESTORE-WRITE",
+        "traffic": "Restoration function-code-5 request to 10.10.20.10:502",
+        "expected_unique_alerts": 1,
+        "evidence_type": "canonical_validation_run"
+      },
+      {
+        "test_id": "OT-FC5-RESPONSE",
+        "traffic": "Function-code-5 response from 10.10.20.10",
+        "expected_unique_alerts": 0,
+        "evidence_type": "canonical_or_synthetic"
+      },
+      {
+        "test_id": "OT-OTHER-DESTINATION",
+        "traffic": "Function-code-5 request to a destination other than 10.10.20.10:502",
+        "expected_unique_alerts": 0,
+        "evidence_type": "synthetic_if_not_observed"
+      },
+      {
+        "test_id": "OT-ALTERNATE-SOURCE",
+        "traffic": "Function-code-5 request from a source other than 10.10.10.30 to 10.10.20.10:502",
+        "expected_unique_alerts": 1,
+        "evidence_type": "synthetic_if_not_observed"
+      },
+      {
+        "test_id": "OT-OTHER-WRITE-FUNCTION",
+        "traffic": "Function code 15 or a Modbus register-write request to 10.10.20.10:502",
+        "expected_unique_alerts": 0,
+        "evidence_type": "synthetic_if_not_observed"
+      },
+      {
+        "test_id": "OT-MALFORMED-UNPARSED",
+        "traffic": "Malformed or unparsed traffic",
+        "expected_result": "Record parser outcome; it must not count as a successful function-code-5 detection.",
+        "evidence_type": "synthetic_optional"
+      }
+    ],
+    "pass_condition": "The controlled action and restoration request each have exactly one corresponding unique alert; every alert produced by the candidate detection is explained; baseline reads do not alert; required negative and generalization tests produce their specified outcomes; and semantic inspection confirms that no prohibited restriction or behavior was introduced.",
+    "reporting_boundary": "Report observed matches and test outcomes. Do not claim a false-positive rate, detection accuracy, or general OT coverage from this limited dataset."
+  },
+  "semantic_inspection_gate": {
+    "required": true,
+    "reject_if_candidate": [
+      "uses 10.10.10.30 as a match requirement",
+      "restricts coil address or value",
+      "restricts Modbus unit ID",
+      "adds unrelated payload matching",
+      "broadens the destination beyond 10.10.20.10:502",
+      "matches responses instead of requests",
+      "uses an action other than alert"
+    ]
+  },
+  "implementation_prerequisites": {
+    "purpose": "Record later environment facts required before a candidate detection can be tested; these fields do not define the AI generation or deployment workflow.",
+    "suricata_engine_version": null,
+    "pfsense_suricata_package_version": null,
+    "modbus_parser_enabled": null,
+    "configuration_sha256": null,
+    "requirement": "Test any candidate using the same Suricata version and relevant configuration intended for the lab sensor."
+  },
+  "companion_artifact_references": {
+    "rule_generation_schema": null,
+    "deployment_record_schema": null,
+    "response_policy": "ot_response_policy_v1.json"
+  },
+  "known_limitations": [
+    "The detection identifies a control write, not attacker intent.",
+    "A legitimate maintenance write using function code 5 will also match.",
+    "The controlled action and restoration are intentionally indistinguishable to this network detection.",
+    "The reads-only baseline is too small to establish accuracy or a false-positive rate.",
+    "The specification covers one monitored Conpot endpoint and does not claim general OT coverage."
+  ],
+  "untested_assumptions": [
+    "The canonical controlled action and restoration use Modbus function code 5.",
+    "The selected capture point observes the required request traffic.",
+    "The intended Suricata environment can parse Modbus traffic with its deployed configuration.",
+    "Missing conformance cases can be represented safely with clearly labeled synthetic PCAPs."
+  ],
+  "blackbox_review": {
+    "review_status": "completed_for_design",
+    "verdict": "BLOCKED_PENDING_EVIDENCE",
+    "blocking_findings": [
+      "Canonical PCAP fields and capture visibility have not yet been confirmed.",
+      "Evidence hashes and time-correlation parameters have not yet been recorded.",
+      "Suricata environment and Modbus parser status have not yet been recorded."
+    ],
+    "resolved_findings": [
+      "Defined one exact request behavior and prohibited source, address, value, unit-ID, and payload overfitting.",
+      "Replaced minimum alert counts with transaction-level attribution and explained-alert requirements.",
+      "Added negative and alternate-source conformance tests.",
+      "Separated detection requirements from response, deployment, and AI-generation policy.",
+      "Defined restoration as an expected matching write that requires external context for attribution.",
+      "Separated known limitations from untested assumptions.",
+      "Normalized lifecycle status and preserved v1 as the superseded specification."
+    ],
+    "approval_gate": "Populate and verify all required evidence and environment fields, execute the conformance matrix, rerun black-box review, resolve all blocking findings, and obtain explicit evidence approval before changing lifecycle_status to APPROVED_FOR_GENERATION."
+  }
+}

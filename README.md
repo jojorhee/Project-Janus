@@ -4,7 +4,7 @@
 
 Project Janus is a small, script-driven purple-team lab that is being developed during an internship at the **Technology Advancement Center (TAC)**. The project is designed to automate a mapped adversary attack, collect the resulting telemetry, use a large language model to generate detection rules and a threat-intelligence report, and ultimately close the loop by automatically blocking the attacker when a validated rule fires.
 
-> **Current status:** Week 2 — Telemetry, segmentation validation, and OT attack scripting  
+> **Current status:** Week 4 complete — Clean evidence runs, normalization, and detection specifications  
 > **Author:** Josiah Rhee  
 > **Organization:** Technology Advancement Center  
 > **Internship period:** July 26–August 26, 2026
@@ -43,12 +43,38 @@ The following infrastructure has been deployed and validated:
 - [x] Allowed TCP/502 and blocked TCP/80 paths validated
 - [x] Safe Modbus baseline, write, and restore workflow completed
 - [x] PowerShell OT orchestration script completed
-- [ ] Full Windows and OT attack-chain execution
-- [ ] Automated log harvesting
+- [x] Separate Sandworm-inspired IT and OT attack vectors completed
+- [x] Clean, timestamped IT evidence run preserved
+- [x] Clean, timestamped OT evidence run preserved
+- [x] Windows and OT baseline/attack evidence organized and normalized
+- [x] Remote PowerShell/WinRM execution and client-side process activity documented
+- [x] Modbus coil write verified through structured evidence and packet capture
+- [x] Windows and OT detection specifications completed
 - [ ] LLM-assisted detection generation
+- [ ] Detection validation against baseline and attack evidence
+- [ ] Automated rule deployment
 - [ ] CTI-report generation
-- [ ] Detection validation and measurement
 - [ ] pfSense automatic block-on-detection response
+
+## Week 4 Completion Summary
+
+Week 4 focused on proving the two attack vectors with direct, timestamped evidence before beginning LLM-assisted rule generation.
+
+### Completed
+
+- Preserved one canonical clean IT run and one canonical clean OT run.
+- Recorded exact timestamps, notes, and artifact locations for both scenarios.
+- Proved the IT chain through PowerShell discovery, WinRM remoting, client-side PowerShell activity, marker-protected wiper execution, and dummy-file deletion.
+- Proved the OT chain through baseline capture, Modbus/TCP coil write, readback verification, restoration, JSON outputs, and packet-level confirmation.
+- Organized raw evidence under separate baseline and attack folders.
+- Created normalized Windows and OT evidence without overwriting raw artifacts.
+- Compared baseline and attack behavior.
+- Wrote one Windows detection specification and one OT detection specification.
+- Froze the project scope for Week 5: one Sigma rule, one executable Windows JSON rule, and one Suricata rule.
+
+### Week 5 Entry Point
+
+The next phase is to generate schema-valid candidate detections, validate them against baseline and attack evidence, and deploy only approved artifacts.
 
 ## Lab Architecture
 
@@ -121,7 +147,12 @@ The mapping is intended to guide:
 - CTI-report structure
 - Validation of defensive coverage
 
-Only safe, low-impact techniques will be executed inside the isolated lab. The mapping is complete, and the first safe OT action scripts are working. The full Windows-to-OT attack chain is still in development and should not be treated as a complete reproduction of a real intrusion.
+Only safe, low-impact techniques are executed inside the isolated lab. The project now uses two separate Sandworm-inspired scenarios rather than presenting them as one historically exact chain:
+
+- **IT vector:** assumed Kali/RDP foothold → PowerShell host/domain discovery on the Windows client → WinRM/PowerShell remoting to Windows Server → approved safe-wiper script retrieved from a domain-accessible NETLOGON location → marker-protected execution against disposable client files.
+- **OT vector:** assumed compromised Windows client → Modbus/TCP baseline capture → allowlisted coil write against Conpot → readback verification → restoration to the original value.
+
+GPO automation was attempted and retired after it did not execute reliably. The validated IT workflow uses PowerShell remoting instead.
 
 ## Planned Workflow
 
@@ -131,32 +162,58 @@ Deploy the lab, validate segmentation and domain services, operate Conpot, gener
 
 ### Phase 2 — Endpoint and Network Visibility
 
-Sysmon 15.2 and source-initiated Windows Event Forwarding have been implemented and validated. Current work focuses on reliable export, timestamp standardization, and combining Windows, Linux, honeypot, and packet-capture evidence.
+Sysmon 15.2 and source-initiated Windows Event Forwarding were implemented and validated. Windows event exports, discovery output, wiper evidence, Modbus JSON, packet captures, and supporting notes are now organized into baseline, attack, and normalized evidence sets.
 
-### Phase 3 — Automated Attack Execution
+### Phase 3 — Safe Attack Execution and Evidence Collection
 
-The OT baseline, controlled coil-write, restoration, and PowerShell orchestration components are complete. The next step is integrating them with the planned Windows attack path. Tools include or may include:
+The Week 3 attack workflows and Week 4 evidence runs are complete.
 
-- Paramiko for SSH-controlled execution
-- Scapy for crafted network traffic
-- PowerShell for controlled Windows living-off-the-land behavior
-- `pymodbus` for controlled, allowlisted Modbus operations
+#### IT vector
+
+- Manual Kali-to-client RDP foothold
+- PowerShell host/domain discovery on the Windows client
+- WinRM/PowerShell remoting to Windows Server
+- Approved script staging through the domain-accessible NETLOGON folder
+- Marker-protected safe-wiper execution in `C:\WiperTest`
+- Before/after file evidence, Windows event exports, and cleanup
+
+#### OT vector
+
+- Baseline coil capture
+- Controlled Modbus/TCP coil write
+- Readback verification
+- Restoration using the exact baseline
+- JSON outputs, timestamps, notes, and packet-level evidence
+
+The two scenarios feed one detection pipeline but are not presented as a single historically exact Sandworm chain.
 
 ### Phase 4 — AI-Assisted Detection Engineering
 
-Send normalized telemetry and ATT&CK context to an approved LLM through a restricted prompt and request draft outputs such as:
+Week 4 produced one Windows and one OT detection specification based on verified evidence.
 
-- Sigma rules for Windows behavior
-- Snort or Suricata-style network signatures
-- YARA rules where appropriate
-- Structured indicators of compromise
-- A concise CTI-report draft
+Week 5 will use normalized evidence and ATT&CK context to generate:
 
-All generated material will be reviewed and validated manually before use.
+- One Sigma rule for the Windows behavior
+- One small executable Janus JSON rule for normalized Windows events
+- One Suricata rule for the confirmed Modbus write
+- Structured indicators and concise supporting analysis
+
+All LLM-generated output is treated as a proposed hypothesis until it passes schema/syntax checks and validation against both attack and baseline evidence.
 
 ### Phase 5 — Closed-Loop Response
 
-Replay a controlled attack, trigger a validated detection, and use the pfSense API to block the offending source address. The response is deliberately limited to one action: **block the detected source**.
+After the Windows and OT detections are validated and approved, Project Janus will automatically deploy them and connect the confirmed OT alert to one constrained response:
+
+```text
+Confirmed OT alert
+→ extract observed Windows-client source IP
+→ check response allowlist and protected systems
+→ add that IP to JANUS_BLOCKLIST
+→ verify IT-to-OT traffic is blocked
+→ remove the block during cleanup
+```
+
+The controller will not create arbitrary firewall rules or trust an unchecked LLM-provided IP.
 
 ## Expected Deliverables
 
@@ -255,12 +312,13 @@ The current infrastructure documentation is available in the `docs/` directory. 
 
 ## Known Limitations
 
-- Sysmon and Windows Event Forwarding are not yet deployed.
-- The current Sandworm mapping is preliminary.
-- Automated attack execution is not yet complete.
-- No AI-generated detection should be considered valid until tested.
-- Automatic pfSense response has not yet been implemented.
-- Conpot provides a simplified honeypot rather than a full physical-process simulation.
+- The project models two separate Sandworm-inspired scenarios rather than reproducing one exact historical attack chain.
+- Initial access and privileged access are assumed preconditions.
+- GPO automation was retired after the startup-script path did not execute reliably.
+- Conpot provides a simplified honeypot and PLC-like coil state rather than a real physical process.
+- Week 4 evidence supports the demonstrated lab behaviors only; it does not establish broad detection accuracy.
+- No AI-generated detection is considered valid until tested against both attack and baseline evidence.
+- Automatic deployment and pfSense response have not yet been implemented.
 
 ## License
 

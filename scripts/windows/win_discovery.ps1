@@ -1,10 +1,7 @@
 <#
 .SYNOPSIS
     Collects a small set of read-only Windows and domain discovery evidence.
-    Collects a small set of read-only Windows and domain discovery evidence.
 
-.EXAMPLE
-    .\win_discovery.ps1 -OutputDirectory C:\ProjectJanus\evidence\attack\it
 .EXAMPLE
     .\win_discovery.ps1 -OutputDirectory C:\ProjectJanus\evidence\attack\it
 #>
@@ -31,11 +28,8 @@ function Write-EvidenceJson {
 
     $Data | ConvertTo-Json -Depth 6 |
         Set-Content -LiteralPath $Path -Encoding utf8
-    $Data | ConvertTo-Json -Depth 6 |
-        Set-Content -LiteralPath $Path -Encoding utf8
 }
 
-# Create one unique directory for this discovery run.
 # Create one unique directory for this discovery run.
 if (-not (Test-Path -LiteralPath $OutputDirectory)) {
     New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
@@ -120,19 +114,12 @@ if ($computerSystem.PartOfDomain) {
         $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
         $domainController = $domain.FindDomainController()
         $serverFqdn = $domainController.Name
-        $domain = [System.DirectoryServices.ActiveDirectory.Domain]::GetComputerDomain()
-        $domainController = $domain.FindDomainController()
-        $serverFqdn = $domainController.Name
 
         $domainControllerInfo = [ordered]@{
             collected_utc = (Get-Date).ToUniversalTime().ToString('o')
             domain        = $domain.Name
             dc_name       = $domainController.Name
-            domain        = $domain.Name
-            dc_name       = $domainController.Name
             dc_ip_address = $domainController.IPAddress
-            dc_site       = $domainController.SiteName
-            reachable     = $true
             dc_site       = $domainController.SiteName
             reachable     = $true
         }
@@ -140,8 +127,6 @@ if ($computerSystem.PartOfDomain) {
     catch {
         $domainControllerInfo = [ordered]@{
             collected_utc = (Get-Date).ToUniversalTime().ToString('o')
-            reachable     = $false
-            error         = $_.Exception.Message
             reachable     = $false
             error         = $_.Exception.Message
         }
@@ -152,21 +137,12 @@ else {
         collected_utc = (Get-Date).ToUniversalTime().ToString('o')
         reachable     = $false
         reason        = 'Host is not joined to a domain.'
-        reachable     = $false
-        reason        = 'Host is not joined to a domain.'
     }
 }
 
 Write-EvidenceJson -Data $domainControllerInfo `
     -Path (Join-Path $runDirectory '03_domain-controller.json')
 
-Write-Host "Discovery complete: $runDirectory"
-
-# Returning the directory makes it easy to pass into test_dc_access.ps1.
-[PSCustomObject]@{
-    RunDirectory =  $runDirectory
-    ServerFqdn   = $serverFqdn
-}
 Write-Host "Discovery complete: $runDirectory"
 
 # Returning the directory makes it easy to pass into test_dc_access.ps1.

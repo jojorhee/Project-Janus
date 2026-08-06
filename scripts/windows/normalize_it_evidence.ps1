@@ -27,9 +27,14 @@ if (Test-Path (Join-Path -Path $OutputDir -ChildPath "sysmon_normalized.csv")) {
 if (Test-Path (Join-Path -Path $OutputDir -ChildPath "powershell_normalized.csv")) {
     throw "Normalized powershell output already exists"
 }
+if (Test-Path (Join-Path -Path $OutputDir -ChildPath "rdp_normalized.csv")) {
+    throw "Normalized RDP attribution output already exists"
+}
 
 $SysmonCsv = Join-Path -Path $OutputDir -ChildPath "sysmon_normalized.csv"
 $PowerShellOutputCsv = Join-Path $OutputDir "powershell_normalized.csv"
+$RdpOutputCsv = Join-Path $OutputDir "rdp_normalized.csv"
+New-Item $OutputDir -ItemType Directory -Force | Out-Null
 
 # Extract one named value from the multiline Sysmon Message field.
 # Example: "Image: C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe"
@@ -105,6 +110,155 @@ if (@($NormalizedRows).Count -eq 0) {
     throw "No Sysmon Event ID 1 records were found."
 }
 
+# Normalize response-enrichment evidence separately from detection telemetry.
+function Convert-ToUtcText {
+    param([string]$TimeText)
+
+    if (-not $TimeText) {
+        return $null
+    }
+
+    try {
+        return ([datetime]$TimeText).ToUniversalTime().ToString("o")
+    }
+    catch {
+        return $TimeText
+    }
+}
+
+function Test-AttributionIp {
+    param([string]$AddressText)
+
+    if (-not $AddressText -or $AddressText -eq "-") {
+        return $false
+    }
+
+    $ParsedAddress = $null
+    if (-not [System.Net.IPAddress]::TryParse($AddressText, [ref]$ParsedAddress)) {
+        return $false
+    }
+
+    if ([System.Net.IPAddress]::IsLoopback($ParsedAddress)) {
+        return $false
+    }
+
+    return $AddressText -notin "0.0.0.0", "::"
+}
+
+$NormalizedRdp = @(
+    # Best real-time source: active client connection to local RDP port 3389.
+    foreach ($File in Get-ChildItem $InputDirectory -Recurse -File `
+        -Filter "00-rdp-connections.csv") {
+        $RowNumber = 0
+        foreach ($Row in Import-Csv $File.FullName) {
+            $RowNumber++
+            $SourceIp = $Row.RemoteAddress
+
+            [PSCustomObject]@{
+                timestamp_utc      = Convert-ToUtcText $Row.captured_utc
+                host               = $Row.host
+                user               = $Row.user
+                domain             = $null
+                source_ip          = $SourceIp
+                source_port        = $Row.RemotePort
+                local_ip           = $Row.LocalAddress
+                local_port         = $Row.LocalPort
+                logon_type         = "active_rdp_tcp"
+                event_id           = $null
+                provider           = "Get-NetTCPConnection"
+                attribution_source = "active_tcp_connection"
+                source_ip_valid    = Test-AttributionIp $SourceIp
+                run_id             = $RunId
+                label              = $Label
+                raw_file           = $File.FullName
+                raw_row            = $RowNumber
+            }
+        }
+    }
+
+    # Historical fallback: Security 4624 Logon Type 10.
+    foreach ($File in Get-ChildItem $InputDirectory -Recurse -File `
+        -Filter "EventLog_Security_4624_RDP.csv") {
+        $RowNumber = 0
+        foreach ($Row in Import-Csv $File.FullName) {
+            $RowNumber++
+            $SourceIp = $Row.IpAddress
+
+            [PSCustomObject]@{
+                timestamp_utc      = Convert-ToUtcText $Row.TimeCreated
+                host               = $Row.MachineName
+                user               = $Row.TargetUserName
+                domain             = $Row.TargetDomainName
+                source_ip          = $SourceIp
+                source_port        = $Row.IpPort
+                local_ip           = $null
+                local_port         = "3389"
+                logon_type         = $Row.LogonType
+                event_id           = $Row.Id
+                provider           = $Row.ProviderName
+                attribution_source = "security_4624"
+                source_ip_valid    = Test-AttributionIp $SourceIp
+                run_id             = $RunId
+                label              = $Label
+                raw_file           = $File.FullName
+                raw_row            = $RowNumber
+            }
+        }
+    }
+
+    # Optional fallback: Terminal Services Event 1149.
+    foreach ($File in Get-ChildItem $InputDirectory -Recurse -File `
+        -Filter "*TerminalServices-RemoteConnectionManager_Operational.csv") {
+        $RowNumber = 0
+        foreach ($Row in Import-Csv $File.FullName) {
+            $RowNumber++
+            $SourceIp = $Row.IpAddress
+
+            [PSCustomObject]@{
+                timestamp_utc      = Convert-ToUtcText $Row.TimeCreated
+                host               = $Row.MachineName
+                user               = $Row.TargetUserName
+                domain             = $Row.TargetDomainName
+                source_ip          = $SourceIp
+                source_port        = $null
+                local_ip           = $null
+                local_port         = "3389"
+                logon_type         = "rdp_authentication"
+                event_id           = $Row.Id
+                provider           = $Row.ProviderName
+                attribution_source = "terminal_services_1149"
+                source_ip_valid    = Test-AttributionIp $SourceIp
+                run_id             = $RunId
+                label              = $Label
+                raw_file           = $File.FullName
+                raw_row            = $RowNumber
+            }
+        }
+    }
+)
+
+if ($NormalizedRdp.Count -gt 0) {
+    $NormalizedRdp |
+        Export-Csv $RdpOutputCsv -NoTypeInformation -Encoding UTF8
+
+    $ValidSources = @(
+        $NormalizedRdp |
+            Where-Object { $_.source_ip_valid -eq $true } |
+            Select-Object -ExpandProperty source_ip -Unique
+    )
+
+    Write-Host "Normalized $($NormalizedRdp.Count) RDP attribution records."
+    if ($ValidSources.Count -gt 0) {
+        Write-Host "Observed RDP source IP(s): $($ValidSources -join ', ')"
+    }
+    else {
+        Write-Warning "RDP evidence was present, but no usable source IP was found."
+    }
+}
+else {
+    Write-Warning "No RDP attribution evidence was available to normalize."
+}
+
 # Create derived folder and save normalized rows.
 New-Item (Split-Path $SysmonCsv -Parent) `
     -ItemType Directory -Force | Out-Null
@@ -170,18 +324,20 @@ else {
                 $ScriptContent = $ScriptContent -replace "`r?`n", "\n"
             }
 
+            $EventType = if ($Event.Id -eq "4104") {
+                "script_block"
+            }
+            else {
+                "module_pipeline"
+            }
+
             [PSCustomObject]@{
                 timestamp_utc = $TimestampUtc
                 host          = $Event.MachineName
                 user          = $User
                 event_id      = $Event.Id
                 provider      = "Microsoft-Windows-PowerShell"
-                event_type    = if ($Event.Id -eq "4104") {
-                                    "script_block"
-                                }
-                                else {
-                                    "module_pipeline"
-                                }
+                event_type    = $EventType
                 script_text   = $ScriptContent
                 record_id     = $RecordId
                 run_id        = $RunId
