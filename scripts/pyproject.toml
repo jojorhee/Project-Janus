@@ -1,9 +1,20 @@
 [project]
-name = "sandworm-emulation"
+name = "project-janus-scripts"
 version = "0.1.0"
 description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "dotenv>=0.9.9",
+    "jsonschema>=4.26.0",
+    "openai>=2.53.0",
     "pymodbus>=3.14.0",
+    "python-dotenv>=1.2.2",
 ]
+
+[project.scripts]
+project-janus-scripts = "project_janus_scripts:main"
+
+[build-system]
+requires = ["uv_build>=0.12.0,<0.13.0"]
+build-backend = "uv_build"

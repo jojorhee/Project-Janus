@@ -1,0 +1,192 @@
+{
+  "schema_version": "1.1",
+  "request_id": "generation-004",
+  "target": "windows",
+  "status": "proposed",
+  "rules": [
+    {
+      "rule_type": "sigma",
+      "rule_id": "janus-sigma-windows-powershell-netlogon-simulated-wiper",
+      "title": "PowerShell Execution of Script from NETLOGON Share",
+      "detection_logic": {
+        "summary": "Detects Sysmon process creation of PowerShell executing a script named simulated_wiper.ps1 from a NETLOGON UNC path.",
+        "sigma_yaml": "title: PowerShell Execution of Script from NETLOGON Share\nid: 64fb8d77-7e1c-4fba-9bda-23794b4c5b8e\nstatus: experimental\nlogsource:\n  product: windows\n  category: process_creation\ndetection:\n  selection_image:\n    Image|endswith: '\\\\powershell.exe'\n  selection_commandline:\n    CommandLine|contains|all:\n      - '\\\\netlogon\\\\simulated_wiper.ps1'\n      - '-ExecutionPolicy Bypass'\n  condition: selection_image and selection_commandline\nfalsepositives:\n  - Authorized administrative or test automation executing a similarly named script from a NETLOGON share\nlevel: high"
+      },
+      "evidence_references": [
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\runs\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+          "locator": {
+            "raw_row": 6
+          },
+          "relevance": "Sysmon Event ID 1 contains data.process_image ending in powershell.exe and data.command_line invoking \\\\purplelab.local\\netlogon\\simulated_wiper.ps1 with -ExecutionPolicy Bypass."
+        },
+        {
+          "run_id": "run-001",
+          "label": "baseline",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\baselines\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+          "locator": {
+            "raw_row": 1
+          },
+          "relevance": "Baseline Sysmon process creation shows hostname.exe and does not contain a PowerShell command line referencing a NETLOGON simulated_wiper.ps1 path."
+        }
+      ],
+      "required_fields": [
+        "EventID",
+        "Image",
+        "CommandLine"
+      ],
+      "expected_attack_result": {
+        "dataset_label": "attack",
+        "expected_minimum_matches": 1,
+        "expected_behavior": "Expected to match the Sysmon process creation whose data.command_line invokes the NETLOGON simulated_wiper.ps1 script."
+      },
+      "expected_baseline_result": {
+        "dataset_label": "baseline",
+        "expected_matches": 0,
+        "expected_behavior": "Expected to produce no matches because the supplied baseline process creations do not reference NETLOGON simulated_wiper.ps1 or ExecutionPolicy Bypass."
+      },
+      "limitations": [
+        "Only detects the observed script name and NETLOGON execution path pattern.",
+        "Requires process creation telemetry with Image and CommandLine fields.",
+        "Does not detect execution if PowerShell logging is absent and the command line omits the selected path or execution-policy terms."
+      ],
+      "deployment_target": {
+        "target_type": "artifact_repository",
+        "description": "Portable Sigma artifact; not actively deployed in the MVP",
+        "destination": "project-janus/rules/windows"
+      }
+    },
+    {
+      "rule_type": "janus_windows_json",
+      "rule_id": "janus-windows-netlogon-wiper-execution-and-removal",
+      "title": "PowerShell NETLOGON Script Execution Correlated with WiperTest File Removal",
+      "detection_logic": {
+        "summary": "Correlates PowerShell process creation invoking simulated_wiper.ps1 from NETLOGON with PowerShell telemetry showing Remove-Item activity against C:\\WiperTest on the same host within five minutes.",
+        "stages": [
+          {
+            "stage_id": "component_a",
+            "record_type": "process_creation",
+            "criteria": {
+              "logic": "all",
+              "expressions": [
+                {
+                  "field": "data.process_image",
+                  "operator": "ends_with",
+                  "value": "\\powershell.exe",
+                  "case_sensitive": false
+                },
+                {
+                  "field": "data.command_line",
+                  "operator": "contains",
+                  "value": "\\netlogon\\simulated_wiper.ps1",
+                  "case_sensitive": false
+                }
+              ]
+            }
+          },
+          {
+            "stage_id": "component_b",
+            "record_type": "powershell",
+            "criteria": {
+              "logic": "all",
+              "expressions": [
+                {
+                  "field": "data.script_text",
+                  "operator": "contains",
+                  "value": "Remove-Item",
+                  "case_sensitive": false
+                },
+                {
+                  "field": "data.script_text",
+                  "operator": "contains",
+                  "value": "C:\\WiperTest",
+                  "case_sensitive": false
+                }
+              ]
+            }
+          }
+        ],
+        "correlation": {
+          "required_stages": [
+            "component_a",
+            "component_b"
+          ],
+          "join_field": "host",
+          "window_seconds": 300
+        },
+        "alert_policy": {
+          "component_only_confidence": "medium",
+          "correlated_confidence": "high"
+        }
+      },
+      "evidence_references": [
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\runs\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+          "locator": {
+            "raw_row": 6
+          },
+          "relevance": "The process_creation record has data.process_image C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe and data.command_line containing \\\\purplelab.local\\netlogon\\simulated_wiper.ps1."
+        },
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\runs\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-PowerShell_Operational.csv",
+          "locator": {
+            "raw_row": 175
+          },
+          "relevance": "The powershell record has data.script_text containing Remove-Item commands for files under C:\\WiperTest."
+        },
+        {
+          "run_id": "run-001",
+          "label": "baseline",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\baselines\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+          "locator": {
+            "raw_row": 1
+          },
+          "relevance": "Baseline process creation is hostname.exe and its data.command_line does not contain a NETLOGON simulated_wiper.ps1 path."
+        },
+        {
+          "run_id": "run-001",
+          "label": "baseline",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\baselines\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-PowerShell_Operational.csv",
+          "locator": {
+            "raw_row": 1
+          },
+          "relevance": "Baseline PowerShell script text records hostname invocation and does not contain Remove-Item or C:\\WiperTest."
+        }
+      ],
+      "required_fields": [
+        "host",
+        "timestamp_utc",
+        "data.process_image",
+        "data.command_line",
+        "data.script_text"
+      ],
+      "expected_attack_result": {
+        "dataset_label": "attack",
+        "expected_minimum_matches": 1,
+        "expected_behavior": "Expected to correlate the PowerShell process creation invoking the NETLOGON simulated_wiper.ps1 path with subsequent PowerShell Remove-Item activity targeting C:\\WiperTest on the same host."
+      },
+      "expected_baseline_result": {
+        "dataset_label": "baseline",
+        "expected_matches": 0,
+        "expected_behavior": "Expected to produce no matches because the supplied baseline lacks both a NETLOGON simulated_wiper.ps1 process invocation and PowerShell Remove-Item activity against C:\\WiperTest."
+      },
+      "limitations": [
+        "Correlation is limited to records sharing an identical host value within 300 seconds.",
+        "The process stage depends on Sysmon process creation telemetry containing data.process_image and data.command_line.",
+        "The PowerShell stage depends on script or module logging retaining data.script_text with both Remove-Item and the target directory.",
+        "Legitimate automation using the same script name and target directory can generate alerts."
+      ],
+      "deployment_target": {
+        "target_type": "janus_controller_host",
+        "description": "Windows machine running the Project Janus Python scripts",
+        "destination": "project-janus/controller/rules/windows"
+      }
+    }
+  ]
+}

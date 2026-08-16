@@ -1,0 +1,245 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-janus.local/schemas/normalized_windows.schema.json",
+  "title": "Project Janus Normalized Windows Record",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "record_type",
+    "timestamp_utc",
+    "host",
+    "user",
+    "provider",
+    "run_id",
+    "label",
+    "source",
+    "data"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "record_type": {
+      "enum": [
+        "process_creation",
+        "powershell",
+        "rdp_session"
+      ]
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "host": {
+      "type": "string",
+      "minLength": 1
+    },
+    "user": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provider": {
+      "type": "string",
+      "minLength": 1
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^run-[0-9]+$"
+    },
+    "label": {
+      "enum": ["baseline", "attack"]
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "data": {
+      "type": "object"
+    }
+  },
+
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "record_type": {
+            "const": "process_creation"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/process_creation"
+          }
+        }
+      }
+    },
+
+    {
+        "if": {
+            "properties": {
+                "record_type": {
+                    "const": "powershell"
+                }
+            }
+        },
+        "then": {
+            "properties": {
+            "data": {
+                "$ref": "#/$defs/powershell"
+            }
+            }
+        }
+    },
+    {
+        "if": {
+            "properties": {
+                "record_type": {
+                    "const": "rdp_session"
+                }
+            }
+        },
+        "then": {
+            "properties": {
+            "data": {
+                "$ref": "#/$defs/rdp_session"
+            }
+            }
+        }
+    }
+  ],
+
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw_file", "raw_row"],
+      "properties": {
+        "raw_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "raw_row": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+
+    "process_creation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "process_image",
+        "process_id",
+        "parent_image",
+        "parent_process_id",
+        "command_line"
+      ],
+      "properties": {
+        "event_id": {
+          "const": 1
+        },
+        "process_image": {
+          "type": "string",
+          "minLength": 1
+        },
+        "process_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "parent_image": {
+          "type": "string",
+          "minLength": 1
+        },
+        "parent_process_id": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "command_line": {
+          "type": "string"
+        }
+      }
+    },
+
+    "powershell": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "event_id",
+        "event_type",
+        "script_text",
+        "record_id"
+      ],
+      "properties": {
+        "event_id": {
+          "anyOf": [
+            {"const": 4103},
+            {"const": 4104}
+          ]
+        },
+        "event_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "script_text": {
+          "type": "string"
+        },
+        "record_id": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+
+    "rdp_session": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ip",
+        "source_port",
+        "local_port",
+        "logon_type",
+        "attribution_source",
+        "source_ip_valid"
+      ],
+      
+      "properties": {
+        "source_ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "source_port": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "local_ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "local_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "logon_type": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_ip_valid": {
+          "type": "boolean"
+        },
+        "attribution_source": {
+            "type": "string",
+            "minLength": 1
+        }
+      }
+    }
+
+  }
+}

@@ -1,0 +1,395 @@
+{
+  "specification_id": "project-janus-it-001",
+  "version": "1.0",
+  "status": "approval_ready",
+  "title": "Network-hosted PowerShell execution with destructive script behavior",
+  "project_phase": "week_4_detection_specification",
+  "implementation_status": "not_implemented",
+  "purpose": "Define evidence-backed requirements for the Week 5 Windows Sigma candidate and executable Janus JSON detection rule.",
+  "scenario": {
+    "implemented_chain": [
+      "Assumed Kali foothold establishes RDP access to the Windows client",
+      "The Windows client performs PowerShell host and domain discovery",
+      "The Windows client uses WinRM to prove approved access to the domain controller",
+      "An approved payload is staged on the NETLOGON share",
+      "The Windows client starts a separate PowerShell process that executes the network-hosted simulated wiper",
+      "The simulated wiper deletes only approved dummy files"
+    ],
+    "primary_detection_target": "Observable PowerShell execution and destructive script behavior on the Windows client",
+    "not_claimed": [
+      "The domain controller remotely launches the Windows client process",
+      "RDP attribution proves malicious intent",
+      "The simulation reproduces a complete historical intrusion",
+      "The Week 4 specification is an implemented detection"
+    ]
+  },
+  "scope": {
+    "in_scope": [
+      "Sysmon Event ID 1 process creation",
+      "PowerShell Event ID 4103 module or pipeline content",
+      "PowerShell Event ID 4104 script-block content",
+      "Behavioral comparison of development baseline and attack runs",
+      "One backend-neutral Sigma candidate in Week 5",
+      "One executable Janus Windows JSON rule in Week 5",
+      "Local evaluation against schema-valid windows_events.jsonl evidence"
+    ],
+    "out_of_scope": [
+      "Sysmon Event IDs other than 1 in version one",
+      "Direct Sigma execution against normalized evidence",
+      "Sigma deployment to pfSense",
+      "Automatic IT-triggered blocking",
+      "Production detection-accuracy claims",
+      "A SIEM deployment",
+      "OT detection logic"
+    ]
+  },
+  "evidence_split": {
+    "freeze_before_analysis": true,
+    "development": {
+      "attack_runs": 2,
+      "baseline_runs": 2,
+      "available_to_rule_generation": true
+    },
+    "held_out_validation": {
+      "attack_runs": 1,
+      "baseline_runs": 1,
+      "available_to_rule_generation": false,
+      "selection_policy": "Use the highest-numbered clean attack run and highest-numbered clean baseline run unless an evidence-quality defect is documented before analysis."
+    },
+    "split_manifest_required": true,
+    "label_policy": {
+      "development_partition_role_visible_to_llm": true,
+      "event_label_available_as_detection_feature": false,
+      "holdout_partition_or_results_visible_during_generation": false
+    },
+    "reuse_policy": "If the rule is revised after holdout evaluation, those holdout runs become development data and may not be described as unseen again."
+  },
+  "telemetry": {
+    "sysmon_process_creation": {
+      "logsource": "Microsoft-Windows-Sysmon/Operational",
+      "event_ids": [
+        1
+      ],
+      "required_normalized_fields": [
+        "timestamp_utc",
+        "host",
+        "data.event_id",
+        "data.process_image",
+        "data.process_id",
+        "data.parent_image",
+        "data.parent_process_id",
+        "data.command_line"
+      ],
+      "supporting_fields": [
+        "user"
+      ]
+    },
+    "powershell_operational": {
+      "logsource": "Microsoft-Windows-PowerShell/Operational",
+      "event_ids": [
+        4103,
+        4104
+      ],
+      "required_normalized_fields": [
+        "timestamp_utc",
+        "host",
+        "data.event_id",
+        "data.event_type",
+        "data.script_text"
+      ],
+      "supporting_fields": [
+        "user",
+        "data.record_id"
+      ]
+    },
+    "traceability_fields": [
+      "run_id",
+      "source.raw_file",
+      "source.raw_row",
+      "data.record_id"
+    ],
+    "future_correlation_enhancements": [
+      "Preserve Sysmon process_guid and parent_process_guid",
+      "Preserve PowerShell process_id when supplied by event XML",
+      "Preserve PowerShell script_block_id, runspace_id and script_path when supplied",
+      "Retain user SID and account name separately when both are available"
+    ]
+  },
+  "feature_governance": {
+    "allowed_detection_features": [
+      "Event ID",
+      "PowerShell process image",
+      "Generic UNC path syntax",
+      "PowerShell execution-option categories",
+      "Destructive filesystem-operation categories",
+      "Event time",
+      "Host correlation",
+      "Process correlation when available"
+    ],
+    "correlation_or_traceability_only": [
+      "host",
+      "user",
+      "process_id",
+      "parent_process_id",
+      "process_guid",
+      "parent_process_guid",
+      "run_id",
+      "raw_file",
+      "raw_row",
+      "record_id"
+    ],
+    "prohibited_detection_conditions": [
+      "baseline or attack label",
+      "run identifier",
+      "exact simulated-wiper filename",
+      "exact NETLOGON path",
+      "exact domain name",
+      "exact hostname",
+      "exact username",
+      "known Kali IP address",
+      "evidence-directory path",
+      "simulation-specific file hash",
+      "RDP source address"
+    ],
+    "case_sensitive_string_matching": false
+  },
+  "behavior_components": {
+    "A_network_hosted_powershell_execution": {
+      "source": "sysmon_process_creation",
+      "all": [
+        {
+          "field": "data.event_id",
+          "operator": "equals",
+          "value": 1
+        },
+        {
+          "field": "data.process_image",
+          "operator": "ends_with_any",
+          "values": [
+            "\\powershell.exe",
+            "\\pwsh.exe"
+          ]
+        },
+        {
+          "field": "data.command_line",
+          "operator": "contains",
+          "value": "\\\\"
+        }
+      ],
+      "any_suspicious_context": [
+        {
+          "field": "data.command_line",
+          "operator": "contains",
+          "value": "-ExecutionPolicy Bypass"
+        },
+        {
+          "field": "data.command_line",
+          "operator": "contains",
+          "value": "-NonInteractive"
+        },
+        {
+          "field": "data.command_line",
+          "operator": "contains_any",
+          "values": [
+            "-EncodedCommand",
+            "-enc "
+          ]
+        },
+        {
+          "field": "data.command_line",
+          "operator": "contains",
+          "value": "-WindowStyle Hidden"
+        },
+        {
+          "field": "data.command_line",
+          "operator": "contains_all",
+          "values": [
+            "-NoProfile",
+            "-Command"
+          ]
+        }
+      ],
+      "condition": "all AND at least one any_suspicious_context condition"
+    },
+    "B_destructive_powershell_content": {
+      "source": "powershell_operational",
+      "all": [
+        {
+          "field": "data.event_id",
+          "operator": "in",
+          "values": [
+            4103,
+            4104
+          ]
+        },
+        {
+          "field": "data.script_text",
+          "operator": "contains_any",
+          "values": [
+            "Remove-Item",
+            "[System.IO.File]::Delete",
+            "[System.IO.Directory]::Delete",
+            "Clear-Content"
+          ]
+        }
+      ],
+      "condition": "all"
+    }
+  },
+  "correlation": {
+    "window_minutes": 5,
+    "medium_confidence": [
+      "Component A matches without a correlated Component B",
+      "Component B matches without a correlated Component A"
+    ],
+    "high_confidence": "Components A and B occur on the same host within five minutes.",
+    "correlation_quality": [
+      {
+        "level": "strong",
+        "requirement": "Same host and same process ID within five minutes"
+      },
+      {
+        "level": "supporting",
+        "requirement": "Same host and compatible normalized user identity within five minutes"
+      },
+      {
+        "level": "fallback",
+        "requirement": "Same host within five minutes",
+        "limitation": "May combine unrelated administrative activity and must be marked as lower-quality correlation."
+      }
+    ],
+    "user_identity_required": false,
+    "reason": "Sysmon and PowerShell may represent the same user as an account name and a SID respectively."
+  },
+  "expected_attack_result": {
+    "with_4103_or_4104": "High-confidence alert when Components A and B correlate.",
+    "without_4103_or_4104": "Medium-confidence alert from Component A; the absence of PowerShell content must be reported.",
+    "required_alert_evidence": [
+      "Matched component name",
+      "Confidence and correlation quality",
+      "Timestamp and host",
+      "Matched normalized fields",
+      "References to contributing normalized and raw records",
+      "Explanation that uses only allowed features"
+    ]
+  },
+  "expected_baseline_result": {
+    "expected_alerts": 0,
+    "handling": "Record and investigate every baseline match as a potential false positive; do not conceal or discard it."
+  },
+  "false_positives": {
+    "likely_cases": [
+      "Approved administration scripts executed from network shares",
+      "Software deployment or logon scripts",
+      "Approved cleanup scripts",
+      "Backup or maintenance tooling that removes temporary files",
+      "PowerShell automation using noninteractive or execution-policy options"
+    ],
+    "controls": [
+      "Do not alert on PowerShell execution alone",
+      "Require a generic network-hosted path plus suspicious execution context for Component A",
+      "Use destructive content as a separate component rather than treating every script block as malicious",
+      "Compare component frequency and combinations against development baseline runs",
+      "Document environment-specific exclusions only after evidence-backed validation",
+      "Do not globally allowlist PowerShell, administrators, UNC paths or NETLOGON"
+    ]
+  },
+  "week_5_outputs": {
+    "sigma_candidate": {
+      "count": 1,
+      "purpose": "Portable detection of Component A using canonical Windows/Sysmon fields",
+      "format": "Backend-neutral Sigma YAML",
+      "required_sections": [
+        "title",
+        "id",
+        "status",
+        "description",
+        "author",
+        "date",
+        "logsource",
+        "detection",
+        "falsepositives",
+        "level",
+        "tags"
+      ],
+      "execution_target": "Future Sigma-compatible backend",
+      "executed_by_local_jsonl_evaluator": false,
+      "sent_to_pfsense": false
+    },
+    "janus_windows_json_candidate": {
+      "count": 1,
+      "purpose": "Executable local representation of Components A and B, correlation and alert output",
+      "execution_target": "Janus local evaluator",
+      "input": [
+        "windows_events.jsonl"
+      ],
+      "deployment": "Copy an approved, schema-valid rule into the Janus controller active-rules location",
+      "approval_required": true
+    },
+    "generation_requirements": [
+      "Structured schema-valid API output",
+      "Evidence-based explanation for every condition",
+      "No prohibited detection condition",
+      "One retry after invalid structured output, followed by documented manual correction if necessary",
+      "API key read from an environment variable and excluded from prompts, output and logs"
+    ]
+  },
+  "validation": {
+    "development_phase": [
+      "Generate and tune only with the two assigned attack and two assigned baseline runs",
+      "Record every medium- and high-confidence alert",
+      "Record observed baseline false positives and missed attack behavior",
+      "Freeze the Sigma and Janus JSON candidates before holdout access"
+    ],
+    "holdout_phase": [
+      "Evaluate once against the assigned one attack and one baseline holdout",
+      "Record whether the held-out attack triggered and at what confidence",
+      "Record all held-out baseline alerts",
+      "Preserve matched evidence references and evaluator output",
+      "Do not claim general accuracy from the small lab sample"
+    ],
+    "acceptance_requirements": [
+      "The held-out attack produces at least one medium- or high-confidence alert without prohibited identifiers",
+      "Every alert traces back to normalized and raw evidence",
+      "Baseline outcomes and false positives are reported without concealment",
+      "Missing PowerShell telemetry causes an explicit degraded-confidence result rather than fabricated evidence",
+      "Results are described as lab-observed validation outcomes"
+    ]
+  },
+  "safe_response_candidate": {
+    "current_actions": [
+      "Write a Windows Application Event Viewer warning and display a BurntToast notification",
+      "Preserve contributing evidence references",
+      "Attach a valid observed RDP source IP when available",
+      "Mark attribution unresolved when no valid source is observed",
+      "Request analyst review"
+    ],
+    "rdp_attribution_is_detection_proof": false,
+    "automatic_it_blocking": false,
+    "pfsense_role": "The required Week 6 pfSense block is OT-triggered. IT-triggered containment remains a future stretch item.",
+    "future_it_containment_requirements": [
+      "Reliable source attribution",
+      "Protected-address allowlist",
+      "Analyst approval",
+      "Temporary and reversible enforcement",
+      "Firewall-state and management-access safeguards"
+    ]
+  },
+  "known_limitations": [
+    "PowerShell 4103 and 4104 depend on logging configuration and may be absent.",
+    "Sysmon Event ID 1 proves process creation but not destructive impact by itself.",
+    "Generic UNC execution and PowerShell cleanup commands can be legitimate.",
+    "Host-and-time fallback correlation may join unrelated events.",
+    "Current PowerShell normalization may not expose a process ID for strong cross-source correlation.",
+    "RDP attribution identifies an observed source connection but does not prove intent or causation.",
+    "The wiper log and before-and-after file inventories are experimental ground truth, not production detection inputs.",
+    "The small controlled dataset supports lab validation only and cannot establish production accuracy.",
+    "Sigma correlation behavior varies by backend; the Janus JSON rule is the executable local detection artifact."
+  ],
+  "approval": {
+    "approved": false,
+    "approved_by": null,
+    "approved_utc": null,
+    "change_control": "After approval, changes require a new version and documented reason."
+  }
+}

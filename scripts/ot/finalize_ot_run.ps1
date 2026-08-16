@@ -36,14 +36,17 @@ $NormalizedCsv = Join-Path $DerivedRoot "modbus_normalized.csv"
 $HashPath = Join-Path $MetadataRoot "file_hashes.sha256"
 $Normalizer = Join-Path $PSScriptRoot "normalize_ot_evidence.ps1"
 $Tshark = "C:\Program Files\Wireshark\tshark.exe"
+$JsonNormalizer = Join-Path $PSScriptRoot "normalize_ot.py"
+$OtSchema = Join-Path $ProjectRoot "schemas\normalized_ot_schema.json"
+$NormalizedJsonl = Join-Path $DerivedRoot "modbus_requests.jsonl"
 
 # Fail before changing evidence if anything required is unavailable.
-foreach ($RequiredFile in @($PcapPath, $NotesPath, $Normalizer, $Tshark)) {
+foreach ($RequiredFile in @($PcapPath, $NotesPath, $Normalizer, $Tshark, $JsonNormalizer, $OtSchema)) {
     if (-not (Test-Path $RequiredFile -PathType Leaf)) {
         throw "Required file not found: $RequiredFile"
     }
 }
-foreach ($NewFile in @($NormalizedCsv, $HashPath)) {
+foreach ($NewFile in @($NormalizedCsv, $HashPath, $NormalizedJsonl)) {
     if (Test-Path $NewFile) {
         throw "Finalized output already exists: $NewFile"
     }
@@ -63,7 +66,7 @@ if ($LASTEXITCODE -ne 0 -or $Frames.Count -eq 0) {
 
 # Validate that the PCAP contains at least one client write request.
 $WriteFilter = 'tcp.dstport == 502 && ' +
-    '(modbus.func_code == 5 || modbus.func_code == 15)'
+    '(modbus.func_code == 5)'
 $WriteFrames = @(
     & $Tshark -r $PcapPath -Y $WriteFilter -T fields -e frame.number |
         Where-Object { $_ }
@@ -84,6 +87,19 @@ if ($WriteFrames.Count -eq 0) {
 
 if (-not (Test-Path $NormalizedCsv -PathType Leaf)) {
     throw "Normalizer did not create: $NormalizedCsv"
+}
+
+python $JsonNormalizer `
+    $NormalizedCsv `
+    --schema $OtSchema `
+    --output $NormalizedJsonl
+
+if ($LASTEXITCODE -ne 0) {
+    throw "OT JSON normalization or schema validation failed."
+}
+
+if (-not (Test-Path $NormalizedJsonl -PathType Leaf)) {
+    throw "JSON normalizer did not create: $NormalizedJsonl"
 }
 
 # Replace the pending values without rewriting the rest of the notes.

@@ -10,7 +10,7 @@ param(
     [datetime]$EndTime,
 
     # RDP authentication normally occurs before the attack script starts.
-    [datetime]$AttributionStartTime = $StartTime.AddMinutes(-5)
+    [datetime]$AttributionStartTime = $StartTime.AddMinutes(-1)
 )
 
 Set-StrictMode -Version Latest
@@ -28,11 +28,22 @@ New-Item $OutputDirectory -ItemType Directory -Force | Out-Null
 $QueryStart = $StartTime.AddSeconds(-10)
 $QueryEnd = $EndTime.AddSeconds(10)
 
-# Export the two primary detection sources using the exact attack window.
-foreach ($Log in @(
-    "Microsoft-Windows-Sysmon/Operational",
-    "Microsoft-Windows-PowerShell/Operational"
-)) {
+# Query only the event IDs used by the MVP detection specification. Filtering
+# at Get-WinEvent prevents unrelated records from inflating the raw CSV and the
+# normalized JSONL while preserving the complete, padded attack window.
+$DetectionSources = @(
+    @{
+        LogName  = "Microsoft-Windows-Sysmon/Operational"
+        EventIds = @(1)
+    },
+    @{
+        LogName  = "Microsoft-Windows-PowerShell/Operational"
+        EventIds = @(4103, 4104)
+    }
+)
+
+foreach ($Source in $DetectionSources) {
+    $Log = $Source.LogName
     $SafeName = $Log -replace "[/ ]", "_"
     $CsvPath = Join-Path $OutputDirectory "EventLog_$SafeName.csv"
 
@@ -40,6 +51,7 @@ foreach ($Log in @(
         $Events = @(
             Get-WinEvent -FilterHashtable @{
                 LogName   = $Log
+                Id        = $Source.EventIds
                 StartTime = $QueryStart
                 EndTime   = $QueryEnd
             } -ErrorAction Stop |
@@ -60,7 +72,12 @@ foreach ($Log in @(
         Write-Host "Exported $($Events.Count) events to $CsvPath" -ForegroundColor Green
     }
     else {
-        Write-Warning "No events found in $Log for the attack window."
+        $ExpectedIds = $Source.EventIds -join ", "
+        Write-Warning (
+            "No expected events (IDs $ExpectedIds) found in $Log " +
+            "for the padded attack window."
+        )
+        Export-Csv $CsvPath -NoTypeInformation -Encoding UTF8
     }
 }
 
@@ -134,6 +151,8 @@ if ($Rdp4624Rows.Count -gt 0) {
 }
 else {
     Write-Warning "No Security 4624 Logon Type 10 events were found."
+    $SecurityCsv = Join-Path $OutputDirectory "EventLog_Security_4624_RDP.csv"
+    Export-Csv $SecurityCsv -NoTypeInformation -Encoding UTF8
 }
 
 # Event 1149 is useful when available, but its absence must not fail the run.

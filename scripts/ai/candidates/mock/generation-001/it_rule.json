@@ -1,0 +1,144 @@
+{
+  "rule_type": "janus_windows_json",
+  "rule_id": "JANUS-WIN-001",
+  "title": "Remote PowerShell Followed by Simulated Wiper Execution",
+  "detection_logic": {
+    "summary": "Correlates suspicious network-hosted PowerShell execution with destructive PowerShell content.",
+    "stages": [
+      {
+        "stage_id": "component_a",
+        "record_type": "process_creation",
+        "criteria": {
+          "logic": "all",
+          "expressions": [
+            {
+              "field": "data.event_id",
+              "operator": "equals",
+              "value": 1
+            },
+            {
+              "field": "data.process_image",
+              "operator": "ends_with_any",
+              "values": [
+                "\\powershell.exe",
+                "\\pwsh.exe"
+              ],
+              "case_sensitive": false
+            },
+            {
+              "field": "data.command_line",
+              "operator": "contains",
+              "value": "\\\\",
+              "case_sensitive": false
+            },
+            {
+              "logic": "any",
+              "expressions": [
+                {
+                  "field": "data.command_line",
+                  "operator": "contains",
+                  "value": "-ExecutionPolicy Bypass",
+                  "case_sensitive": false
+                },
+                {
+                  "field": "data.command_line",
+                  "operator": "contains_all",
+                  "values": [
+                    "-NoProfile",
+                    "-Command"
+                  ],
+                  "case_sensitive": false
+                }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "stage_id": "component_b",
+        "record_type": "powershell",
+        "criteria": {
+          "logic": "all",
+          "expressions": [
+            {
+              "field": "data.event_id",
+              "operator": "in",
+              "values": [
+                4103,
+                4104
+              ]
+            },
+            {
+              "field": "data.script_text",
+              "operator": "contains_any",
+              "values": [
+                "Remove-Item",
+                "[System.IO.File]::Delete",
+                "[System.IO.Directory]::Delete",
+                "Clear-Content"
+              ],
+              "case_sensitive": false
+            }
+          ]
+        }
+      }
+    ],
+    "correlation": {
+      "required_stages": [
+        "component_a",
+        "component_b"
+      ],
+      "join_field": "host",
+      "window_seconds": 300
+    },
+    "alert_policy": {
+      "component_only_confidence": "medium",
+      "correlated_confidence": "high"
+    }
+  },
+  "evidence_references": [
+    {
+      "run_id": "run-001",
+      "label": "baseline",
+      "source_file": "C:\\CyberRangers\\evidence\\it\\baselines\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+      "locator": {
+        "raw_row": 10
+      },
+      "relevance": "Representative baseline process event used to check for unwanted matches."
+    },
+    {
+      "run_id": "run-001",
+      "label": "attack",
+      "source_file": "C:\\CyberRangers\\evidence\\it\\runs\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-PowerShell_Operational.csv",
+      "locator": {
+        "raw_row": 14
+      },
+      "relevance": "Process-creation event contains the simulated-wiper command line."
+    }
+  ],
+  "required_fields": [
+    "timestamp_utc",
+    "record_type",
+    "data.script_text",
+    "data.process_image",
+    "data.command_line"
+  ],
+  "expected_attack_result": {
+    "dataset_label": "attack",
+    "expected_minimum_matches": 1,
+    "expected_behavior": "Create at least one correlated Janus alert for the IT attack run."
+  },
+  "expected_baseline_result": {
+    "dataset_label": "baseline",
+    "expected_matches": 0,
+    "expected_behavior": "Create no Janus alerts for the development baseline evidence."
+  },
+  "limitations": [
+    "Batch correlation depends on complete normalized PowerShell and process-creation evidence."
+  ],
+  "deployment_target": {
+    "target_type": "janus_controller_host",
+    "description": "Windows machine running the Project Janus Python scripts",
+    "destination": "detections/windows/janus/active/windows_remote_wiper.json"
+  }
+}

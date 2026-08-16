@@ -1,0 +1,61 @@
+{
+  "schema_version": "1.1",
+  "request_id": "generation-003",
+  "target": "ot",
+  "status": "proposed",
+  "rules": [
+    {
+      "rule_type": "suricata",
+      "rule_id": "JANUS-OT-001",
+      "title": "Modbus Write Single Coil Request",
+      "detection_logic": {
+        "summary": "Detects a Modbus function-code 5 request sent to the protected OT service.",
+        "sid": 1000001,
+        "revision": 1,
+        "suricata_rule": "alert tcp $HOME_NET any -> $HOME_NET 502 (msg:\"JANUS Modbus write single coil\"; flow:to_server,established; content:\"|05|\"; offset:7; depth:1; sid:1000001; rev:1;)"
+      },
+      "evidence_references": [
+        {
+          "run_id": "run-003",
+          "label": "attack",
+          "source_file": "C:\\Users\\jotakieater45\\Downloads\\project-janus-scripts\\attack\\modbus_requests.jsonl",
+          "locator": {"packet_number": 42},
+          "relevance": "Packet contains the allowlisted Modbus function-code 5 coil write."
+        },
+        {
+          "run_id": "run-003",
+          "label": "baseline",
+          "source_file": "modbus_requests.jsonl",
+          "locator": {"packet_number": 6},
+          "relevance": "Representative read-only baseline request used to check for unwanted alerts."
+        }
+      ],
+      "required_fields": [
+        "source.ip",
+        "destination.ip",
+        "destination.port",
+        "modbus.function_code",
+        "modbus.coil_address",
+        "modbus.coil_value"
+      ],
+      "expected_attack_result": {
+        "dataset_label": "attack",
+        "expected_minimum_matches": 1,
+        "expected_behavior": "Alert on the function-code 5 write in the development attack PCAP."
+      },
+      "expected_baseline_result": {
+        "dataset_label": "baseline",
+        "expected_matches": 0,
+        "expected_behavior": "Produce no alerts on the read-only development baseline PCAP."
+      },
+      "limitations": [
+        "A function-code-only signature can alert on authorized single-coil writes unless network endpoints or coil addresses are narrowed during deterministic testing."
+      ],
+      "deployment_target": {
+        "target_type": "pfsense_suricata",
+        "description": "Suricata instance on the pfSense interface that observes IT-to-OT Modbus traffic",
+        "destination": "pfSense Suricata custom rules for the monitored IT-to-OT interface"
+      }
+    }
+  ]
+}

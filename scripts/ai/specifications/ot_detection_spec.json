@@ -1,0 +1,143 @@
+{
+  "schema_version": "3.0",
+  "spec_id": "janus-ot-write-single-coil-v3",
+  "supersedes": "janus-ot-write-single-coil-v2",
+  "title": "Modbus Write Single Coil to Monitored Conpot Endpoint",
+  "last_updated_utc": "2026-08-10",
+  "lifecycle_status": "READY_FOR_GENERATION",
+  "purpose": "Generate and validate one narrowly scoped Suricata alert rule for Modbus function-code-5 requests to the monitored Conpot endpoint without claiming that every write is malicious.",
+  "scope": {
+    "environment": "Authorized Project Janus lab only",
+    "monitored_asset": {
+      "role": "Conpot OT endpoint",
+      "ipv4": "10.10.20.10",
+      "transport": "tcp",
+      "port": 502
+    },
+    "in_scope_activity": "Modbus Write Single Coil request using function code 5",
+    "out_of_scope_activity": [
+      "Modbus reads",
+      "Modbus function-code-5 responses",
+      "function-code-5 requests to other destinations",
+      "function code 15 or register writes",
+      "drop or reject actions",
+      "claims of malicious intent based only on a write",
+      "general OT detection coverage"
+    ]
+  },
+  "input_contract": {
+    "normalized_evidence_file": "modbus_requests.jsonl",
+    "normalized_evidence_schema": "normalized_ot.schema.json",
+    "record_type": "modbus_transaction",
+    "required_fields": [
+      "timestamp_utc",
+      "run_id",
+      "label",
+      "source.raw_file",
+      "source.packet_number",
+      "network.source_ip",
+      "network.destination_ip",
+      "network.destination_port",
+      "network.protocol",
+      "data.function_code"
+    ],
+    "evidence_selection": {
+      "development_runs": {
+        "baseline": 2,
+        "attack": 2
+      },
+      "holdout_runs": {
+        "baseline": 1,
+        "attack": 1
+      },
+      "rule": "Use development runs for generation and initial correction. Do not expose holdout runs to the LLM; use them only for final deterministic validation."
+    },
+    "integrity_requirement": "Verify each finalized run manifest before its normalized evidence is used."
+  },
+  "detection_behavior": {
+    "plain_language": "Alert on each Modbus function-code-5 request sent to 10.10.20.10 on TCP port 502, regardless of source IP, coil address, coil value, or unit ID.",
+    "detection_logic": {
+      "action": "alert",
+      "flow_direction": "to_server",
+      "network.destination_ip": "10.10.20.10",
+      "network.destination_port": 502,
+      "network.protocol": "modbus_tcp",
+      "data.function_code": 5
+    },
+    "prohibited_restrictions": [
+      "Fixed source IP",
+      "Fixed source port",
+      "Coil address",
+      "Coil value",
+      "Modbus unit ID",
+      "Transaction ID",
+      "Arbitrary raw-payload bytes"
+    ],
+    "rationale": "The baseline contains reads, while the controlled OT action and restoration use function code 5. Avoiding transaction-specific fields prevents overfitting to one rehearsed run."
+  },
+  "candidate_rule_contract": {
+    "rule_type": "suricata",
+    "artifact_extension": ".rules",
+    "title": "Modbus Write Single Coil to Monitored Conpot Endpoint",
+    "required_action": "alert",
+    "status": "proposed",
+    "deployment_target": {
+      "device": "pfSense firewall",
+      "engine": "Suricata",
+      "interface_role": "Interface observing traffic to 10.10.20.10:502",
+      "activation": "Install as an approved custom rule, run a configuration test, and reload only the relevant Suricata interface."
+    },
+    "safety_boundary": "The LLM may propose the rule but may not approve, deploy, reload Suricata, or modify pfSense."
+  },
+  "expected_results": {
+    "attack": "At least one alert per attack run, with every observed function-code-5 request attributable to a packet reference. In the current write-and-restore workflow, the expected normal result is two alerts: one for the controlled write and one for restoration.",
+    "baseline": "Zero alerts across all baseline runs. Any baseline match requires investigation and blocks approval until explained.",
+    "important_interpretation": "The restoration alert is expected and is not a false positive; the network rule cannot distinguish authorized restoration from the controlled write."
+  },
+  "validation": {
+    "required_checks": [
+      "Validate Suricata rule syntax against the same engine and configuration intended for deployment.",
+      "Replay both development and holdout baseline PCAPs and record exact alert counts.",
+      "Replay both development and holdout attack PCAPs and record exact alert counts and packet references.",
+      "Confirm responses and function-code-1 reads do not alert.",
+      "Confirm the candidate does not restrict source IP, coil address, coil value, unit ID, transaction ID, or raw payload.",
+      "Record the candidate rule SHA-256 before approval and deployment."
+    ],
+    "pass_condition": "Suricata accepts the rule; all baseline runs produce zero alerts; all attack runs produce the expected function-code-5 alerts; every alert maps to an evidence packet; and semantic inspection finds no prohibited restriction.",
+    "verdicts": [
+      "PASS",
+      "REVISE",
+      "BLOCKED"
+    ],
+    "reporting_boundary": "PASS applies only to this lab dataset and does not establish accuracy, false-positive rate, or general OT coverage."
+  },
+  "benign_lookalikes": [
+    "Authorized maintenance using Write Single Coil",
+    "The scripted restoration write",
+    "Legitimate commissioning or testing against the monitored endpoint"
+  ],
+  "limitations": [
+    "The rule identifies a control write, not attacker identity or intent.",
+    "Legitimate function-code-5 writes to the monitored endpoint will alert.",
+    "The rule cannot distinguish the controlled write from restoration.",
+    "A reads-only baseline is too limited for false-positive-rate or accuracy claims.",
+    "The rule covers one monitored Conpot endpoint and does not generalize to other OT assets or protocols.",
+    "Detection depends on the pfSense capture point seeing the request and Suricata parsing Modbus traffic."
+  ],
+  "remaining_predeployment_facts": [
+    "Record the Suricata engine and pfSense package versions.",
+    "Confirm the Modbus app-layer parser is enabled on the deployment interface.",
+    "Record the active Suricata configuration hash and approved candidate rule hash."
+  ],
+  "blackbox_review": {
+    "verdict": "SUFFICIENT_FOR_MVP_RULE_GENERATION",
+    "material_changes": [
+      "Replaced stale pending-evidence gates with the completed-run development and holdout workflow.",
+      "Named modbus_requests.jsonl and its exact nested fields as the LLM input contract.",
+      "Added the required Suricata artifact type and concrete pfSense deployment target.",
+      "Defined expected attack and baseline results without treating expected values as observed results.",
+      "Reduced optional synthetic testing and retained only checks needed to validate the MVP safely."
+    ],
+    "nonblocking_note": "Populate the listed Suricata environment facts during validation/deployment; do not spend additional specification time on them now."
+  }
+}

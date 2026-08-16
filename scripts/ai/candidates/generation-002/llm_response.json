@@ -1,0 +1,75 @@
+{
+  "schema_version": "1.1",
+  "request_id": "generation-001",
+  "target": "ot",
+  "status": "proposed",
+  "rules": [
+    {
+      "rule_type": "suricata",
+      "rule_id": "JANUS-OT-MODBUS-FC5-COIL1-001",
+      "title": "Modbus Write Single Coil to Coil 1 from 10.10.10.30",
+      "detection_logic": {
+        "summary": "Detects Modbus TCP Write Single Coil requests targeting coil address 1 from 10.10.10.30 to the observed Modbus server 10.10.20.10:502.",
+        "sid": 1000001,
+        "revision": 1,
+        "suricata_rule": "alert tcp 10.10.10.30 any -> 10.10.20.10 502 (msg:\"JANUS OT Modbus Write Single Coil to coil 1\"; flow:to_server,established; content:\"|01 05 00 01|\"; offset:6; depth:4; sid:1000001; rev:1;)"
+      },
+      "evidence_references": [
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\ot\\runs\\run-001\\raw\\ot_run_001.pcap",
+          "locator": {
+            "packet_number": 83
+          },
+          "relevance": "Attack evidence fields data.function_code=5, data.coil_address=1, network.source_ip=10.10.10.30, network.destination_ip=10.10.20.10, and network.destination_port=502 identify a Modbus Write Single Coil request to coil 1."
+        },
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\ot\\runs\\run-001\\raw\\ot_run_001.pcap",
+          "locator": {
+            "packet_number": 133
+          },
+          "relevance": "Attack evidence fields data.function_code=5, data.coil_address=1, network.source_ip=10.10.10.30, network.destination_ip=10.10.20.10, and network.destination_port=502 identify a second Modbus Write Single Coil request to coil 1."
+        },
+        {
+          "run_id": "run-001",
+          "label": "baseline",
+          "source_file": "C:\\CyberRangers\\evidence\\ot\\baselines\\baseline-001\\conpot_baseline_1.pcap",
+          "locator": {
+            "packet_number": 4
+          },
+          "relevance": "Baseline evidence shows network.source_ip=10.10.20.30 communicating with network.destination_ip=10.10.20.10 on network.destination_port=502 using data.function_code=1 rather than the rule's source and Write Single Coil byte sequence."
+        }
+      ],
+      "required_fields": [
+        "network.source_ip",
+        "network.destination_ip",
+        "network.destination_port",
+        "data.function_code",
+        "data.coil_address"
+      ],
+      "expected_attack_result": {
+        "dataset_label": "attack",
+        "expected_minimum_matches": 2,
+        "expected_behavior": "The rule is expected to match the two attack records with data.function_code=5 and data.coil_address=1 from 10.10.10.30 to 10.10.20.10:502."
+      },
+      "expected_baseline_result": {
+        "dataset_label": "baseline",
+        "expected_matches": 0,
+        "expected_behavior": "The rule is expected to produce no matches because the referenced baseline records originate from 10.10.20.30 and use data.function_code=1."
+      },
+      "limitations": [
+        "The rule is limited to Modbus TCP traffic from 10.10.10.30 to 10.10.20.10 on TCP port 502.",
+        "The rule detects only Write Single Coil requests for coil address 1 and does not detect writes to other coil addresses or other Modbus write functions.",
+        "The rule depends on Suricata observing the client-to-server Modbus request bytes after TCP stream reassembly."
+      ],
+      "deployment_target": {
+        "target_type": "pfsense_suricata",
+        "description": "Suricata instance on the pfSense interface that observes IT-to-OT Modbus traffic",
+        "destination": "pfSense Suricata custom ruleset"
+      }
+    }
+  ]
+}

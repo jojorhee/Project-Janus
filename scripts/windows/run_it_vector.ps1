@@ -57,6 +57,11 @@ $DiscoveryScript = Join-Path $PSScriptRoot "win_discovery.ps1"
 $DcAccessScript = Join-Path $PSScriptRoot "test_dc_access.ps1"
 $ExportScript = Join-Path $PSScriptRoot "export_win_events.ps1"
 $CleanupScript = Join-Path $PSScriptRoot "cleanup.ps1"
+$NormalizeScript = Join-Path $PSScriptRoot "normalize_it_evidence.ps1"
+$JsonNormalizer = Join-Path $PSScriptRoot "normalize_windows.py"
+$WindowsSchema = Join-Path `
+    $PSScriptRoot `
+    "..\ai\specifications\it_schema.json"
 
 $NetlogonWiper = "\\purplelab.local\netlogon\simulated_wiper.ps1"
 $TargetDirectory = "C:\WiperTest"
@@ -67,11 +72,25 @@ foreach ($Script in @(
     $DiscoveryScript,
     $DcAccessScript,
     $ExportScript,
-    $CleanupScript
+    $CleanupScript,
+    $NormalizeScript,
+    $JsonNormalizer,
+    $WindowsSchema
 )) {
     if (-not (Test-Path $Script -PathType Leaf)) {
         throw "Required script missing: $Script"
     }
+}
+
+$PythonCommand = Get-Command python -ErrorAction SilentlyContinue
+if (-not $PythonCommand) {
+    throw "Python was not found in PATH. Install Python before running this script."
+}
+
+$PythonExe = $PythonCommand.Source
+& $PythonExe -c "import jsonschema" 2>$null
+if ($LASTEXITCODE -ne 0) {
+    throw "Python package 'jsonschema' is missing. Run: python -m pip install jsonschema"
 }
 
 # -------------------------
@@ -467,15 +486,10 @@ Failure: $FailureMessage
         -Encoding ASCII
 }
 
-# Normalize captured IT telemetry
+# Normalize and validate captured IT telemetry
 # ===========================================================================
-# Raw evidence remains unchanged. Normalized CSVs are written into derived\.
-
-$NormalizeScript = "C:\CyberRangers\it\normalize_it_evidence.ps1"
-
-if (-not (Test-Path $NormalizeScript)) {
-    throw "Normalization script not found: $NormalizeScript"
-}
+# Raw evidence remains unchanged. The PowerShell normalizer first creates flat
+# CSV derivatives. The Python adapter then converts them to schema-valid JSONL.
 
 $NormalizeParameters = @{
     InputDirectory = $RawRoot
@@ -484,21 +498,62 @@ $NormalizeParameters = @{
     Label           = "attack"
 }
 
-Write-Host "`nNormalizing Sysmon and PowerShell events..." -ForegroundColor Cyan
+$SysmonNormalized = Join-Path $DerivedRoot "sysmon_normalized.csv"
+$PowerShellNormalized = Join-Path $DerivedRoot "powershell_normalized.csv"
+$RdpNormalized = Join-Path $DerivedRoot "rdp_normalized.csv"
+$WindowsJsonl = Join-Path $DerivedRoot "windows_events.jsonl"
+
+Write-Host "`nNormalizing Windows events to CSV..." -ForegroundColor Cyan
+
+$NormalizationFailure = $null
 
 try {
     & $NormalizeScript @NormalizeParameters
 
-    Write-Host "IT normalization completed." -ForegroundColor Green
+    foreach ($NormalizedCsv in @(
+        $SysmonNormalized,
+        $PowerShellNormalized,
+        $RdpNormalized
+    )) {
+        if (-not (Test-Path $NormalizedCsv -PathType Leaf)) {
+            throw "Expected normalized CSV was not created: $NormalizedCsv"
+        }
+    }
+
+    Write-Host "Converting normalized CSVs to validated JSONL..." `
+        -ForegroundColor Cyan
+
+    & $PythonExe $JsonNormalizer `
+        --sysmon $SysmonNormalized `
+        --powershell $PowerShellNormalized `
+        --rdp $RdpNormalized `
+        --schema $WindowsSchema `
+        --output $WindowsJsonl
+
+    if ($LASTEXITCODE -ne 0) {
+        throw "Windows JSON normalization failed with exit code $LASTEXITCODE."
+    }
+
+    if (-not (Test-Path $WindowsJsonl -PathType Leaf)) {
+        throw "JSON normalizer did not create: $WindowsJsonl"
+    }
+
+    Write-Host "IT CSV and JSONL normalization completed." `
+        -ForegroundColor Green
 }
 catch {
     # Normalization failure does not erase or invalidate raw evidence.
+    $NormalizationFailure = $_.Exception.Message
     Write-Warning "Raw evidence was captured, but normalization failed:"
-    Write-Warning $_.Exception.Message
+    Write-Warning $NormalizationFailure
 }
 
 if ($FailureMessage) {
     throw $FailureMessage
+}
+
+if ($NormalizationFailure) {
+    throw $NormalizationFailure
 }
 
 Write-Host "IT evidence run completed: $RunRoot"

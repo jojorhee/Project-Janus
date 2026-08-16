@@ -1,0 +1,174 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-janus.local/schemas/normalized_ot.schema.json",
+  "title": "Project Janus Normalized OT Record",
+  "type": "object",
+  "additionalProperties": false,
+
+  "required": [
+    "schema_version",
+    "record_type",
+    "timestamp_utc",
+    "run_id",
+    "label",
+    "source",
+    "network",
+    "data"
+  ],
+
+  "properties": {
+    "schema_version": {
+      "const": "1.0"
+    },
+    "record_type": {
+      "const": "modbus_transaction"
+    },
+    "timestamp_utc": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "run_id": {
+      "type": "string",
+      "pattern": "^run-[0-9]+$"
+    },
+    "label": {
+      "enum": ["baseline", "attack"]
+    },
+    "source": {
+      "$ref": "#/$defs/source"
+    },
+    "network": {
+      "$ref": "#/$defs/network"
+    },
+    "data": {
+      "$ref": "#/$defs/modbus"
+    }
+  },
+
+  "$defs": {
+    "source": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "raw_file",
+        "packet_number"
+      ],
+      "properties": {
+        "raw_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "packet_number": {
+          "type": "integer",
+          "minimum": 1
+        }
+      }
+    },
+
+    "network": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_ip",
+        "source_port",
+        "destination_ip",
+        "destination_port",
+        "protocol"
+      ],
+      "properties": {
+        "source_ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "source_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535
+        },
+        "destination_ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
+        "destination_port": {
+          "const": 502
+        },
+        "protocol": {
+          "const": "modbus_tcp"
+        }
+      }
+    },
+
+    "modbus": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "transaction_id",
+        "unit_id",
+        "function_code"
+      ],
+      "properties": {
+        "transaction_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "unit_id": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "function_code": {
+          "enum": [1, 5]
+        },
+        "coil_address": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "coil_value": {
+          "enum": ["0x0000", "0xFF00"]
+        },
+        "quantity": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 2000
+        }
+      },
+
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "function_code": {
+                "const": 5
+              }
+            },
+            "required": ["function_code"]
+          },
+          "then": {
+            "required": [
+              "coil_address",
+              "coil_value"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "function_code": {
+                "const": 1
+              }
+            },
+            "required": ["function_code"]
+          },
+          "then": {
+            "required": [
+              "coil_address",
+              "quantity"
+            ]
+          }
+        }
+      ]
+    }
+  }
+}

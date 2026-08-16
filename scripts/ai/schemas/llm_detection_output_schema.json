@@ -1,0 +1,740 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://project-janus.local/schemas/llm_detection_output.v1.1.schema.json",
+  "title": "Project Janus LLM Detection Output",
+  "description": "Contract for proposed, evidence-backed detection rules. Actual validation results and approval state are recorded separately by deterministic tooling.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "request_id",
+    "target",
+    "status",
+    "rules"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "1.1"
+    },
+    "request_id": {
+      "type": "string",
+      "pattern": "^generation-[0-9]+$"
+    },
+    "target": {
+      "enum": [
+        "windows",
+        "ot"
+      ]
+    },
+    "status": {
+      "const": "proposed"
+    },
+    "rules": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "$ref": "#/$defs/sigma_rule"
+          },
+          {
+            "$ref": "#/$defs/janus_windows_rule"
+          },
+          {
+            "$ref": "#/$defs/suricata_rule"
+          }
+        ]
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "const": "windows"
+          }
+        },
+        "required": [
+          "target"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rules": {
+            "minItems": 2,
+            "maxItems": 2,
+            "allOf": [
+              {
+                "contains": {
+                  "properties": {
+                    "rule_type": {
+                      "const": "sigma"
+                    }
+                  },
+                  "required": [
+                    "rule_type"
+                  ]
+                },
+                "minContains": 1,
+                "maxContains": 1
+              },
+              {
+                "contains": {
+                  "properties": {
+                    "rule_type": {
+                      "const": "janus_windows_json"
+                    }
+                  },
+                  "required": [
+                    "rule_type"
+                  ]
+                },
+                "minContains": 1,
+                "maxContains": 1
+              }
+            ]
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "target": {
+            "const": "ot"
+          }
+        },
+        "required": [
+          "target"
+        ]
+      },
+      "then": {
+        "properties": {
+          "rules": {
+            "minItems": 1,
+            "maxItems": 1,
+            "contains": {
+              "properties": {
+                "rule_type": {
+                  "const": "suricata"
+                }
+              },
+              "required": [
+                "rule_type"
+              ]
+            },
+            "minContains": 1,
+            "maxContains": 1
+          }
+        }
+      }
+    }
+  ],
+  "$defs": {
+    "rule_common": {
+      "type": "object",
+      "required": [
+        "rule_type",
+        "rule_id",
+        "title",
+        "detection_logic",
+        "evidence_references",
+        "required_fields",
+        "expected_attack_result",
+        "expected_baseline_result",
+        "limitations",
+        "deployment_target"
+      ],
+      "properties": {
+        "rule_type": {
+          "enum": [
+            "sigma",
+            "janus_windows_json",
+            "suricata"
+          ]
+        },
+        "rule_id": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "detection_logic": {
+          "type": "object"
+        },
+        "evidence_references": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/evidence_reference"
+          }
+        },
+        "required_fields": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "expected_attack_result": {
+          "$ref": "#/$defs/expected_attack_result"
+        },
+        "expected_baseline_result": {
+          "$ref": "#/$defs/expected_baseline_result"
+        },
+        "limitations": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "deployment_target": {
+          "type": "object"
+        }
+      }
+    },
+    "sigma_rule": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/rule_common"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rule_type": {
+              "const": "sigma"
+            },
+            "detection_logic": {
+              "$ref": "#/$defs/sigma_detection_logic"
+            },
+            "deployment_target": {
+              "$ref": "#/$defs/sigma_deployment_target"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "janus_windows_rule": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/rule_common"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rule_type": {
+              "const": "janus_windows_json"
+            },
+            "detection_logic": {
+              "$ref": "#/$defs/janus_detection_logic"
+            },
+            "deployment_target": {
+              "$ref": "#/$defs/janus_deployment_target"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "suricata_rule": {
+      "allOf": [
+        {
+          "$ref": "#/$defs/rule_common"
+        },
+        {
+          "type": "object",
+          "properties": {
+            "rule_type": {
+              "const": "suricata"
+            },
+            "detection_logic": {
+              "$ref": "#/$defs/suricata_detection_logic"
+            },
+            "deployment_target": {
+              "$ref": "#/$defs/suricata_deployment_target"
+            }
+          }
+        }
+      ],
+      "unevaluatedProperties": false
+    },
+    "evidence_reference": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "run_id",
+        "label",
+        "source_file",
+        "locator",
+        "relevance"
+      ],
+      "properties": {
+        "run_id": {
+          "type": "string",
+          "pattern": "^run-[0-9]+$"
+        },
+        "label": {
+          "enum": [
+            "attack",
+            "baseline"
+          ]
+        },
+        "source_file": {
+          "type": "string",
+          "minLength": 1
+        },
+        "locator": {
+          "oneOf": [
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "raw_row"
+              ],
+              "properties": {
+                "raw_row": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "packet_number"
+              ],
+              "properties": {
+                "packet_number": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            }
+          ]
+        },
+        "relevance": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "expected_attack_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset_label",
+        "expected_minimum_matches",
+        "expected_behavior"
+      ],
+      "properties": {
+        "dataset_label": {
+          "const": "attack"
+        },
+        "expected_minimum_matches": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "expected_behavior": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "expected_baseline_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "dataset_label",
+        "expected_matches",
+        "expected_behavior"
+      ],
+      "properties": {
+        "dataset_label": {
+          "const": "baseline"
+        },
+        "expected_matches": {
+          "const": 0
+        },
+        "expected_behavior": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "sigma_detection_logic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "sigma_yaml"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sigma_yaml": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "janus_detection_logic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "stages",
+        "correlation",
+        "alert_policy"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "stages": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/janus_stage"
+          },
+          "allOf": [
+            {
+              "contains": {
+                "properties": {
+                  "stage_id": {
+                    "const": "component_a"
+                  },
+                  "record_type": {
+                    "const": "process_creation"
+                  }
+                },
+                "required": [
+                  "stage_id",
+                  "record_type"
+                ]
+              },
+              "minContains": 1,
+              "maxContains": 1
+            },
+            {
+              "contains": {
+                "properties": {
+                  "stage_id": {
+                    "const": "component_b"
+                  },
+                  "record_type": {
+                    "const": "powershell"
+                  }
+                },
+                "required": [
+                  "stage_id",
+                  "record_type"
+                ]
+              },
+              "minContains": 1,
+              "maxContains": 1
+            }
+          ]
+        },
+        "correlation": {
+          "$ref": "#/$defs/janus_correlation"
+        },
+        "alert_policy": {
+          "$ref": "#/$defs/janus_alert_policy"
+        }
+      }
+    },
+    "janus_stage": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "stage_id",
+        "record_type",
+        "criteria"
+      ],
+      "properties": {
+        "stage_id": {
+          "enum": [
+            "component_a",
+            "component_b"
+          ]
+        },
+        "record_type": {
+          "enum": [
+            "process_creation",
+            "powershell",
+            "rdp_session"
+          ]
+        },
+        "criteria": {
+          "$ref": "#/$defs/janus_expression"
+        }
+      }
+    },
+    "janus_expression": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/janus_condition"
+        },
+        {
+          "$ref": "#/$defs/janus_group"
+        }
+      ]
+    },
+    "janus_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "logic",
+        "expressions"
+      ],
+      "properties": {
+        "logic": {
+          "enum": [
+            "all",
+            "any"
+          ]
+        },
+        "expressions": {
+          "type": "array",
+          "minItems": 1,
+          "maxItems": 20,
+          "items": {
+            "$ref": "#/$defs/janus_expression"
+          }
+        }
+      }
+    },
+    "janus_condition": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/janus_scalar_condition"
+        },
+        {
+          "$ref": "#/$defs/janus_list_condition"
+        }
+      ]
+    },
+    "janus_scalar_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "operator",
+        "value"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator": {
+          "enum": [
+            "equals",
+            "contains",
+            "starts_with",
+            "ends_with"
+          ]
+        },
+        "value": {
+          "type": [
+            "string",
+            "integer",
+            "boolean"
+          ]
+        },
+        "case_sensitive": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "janus_list_condition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "field",
+        "operator",
+        "values"
+      ],
+      "properties": {
+        "field": {
+          "type": "string",
+          "minLength": 1
+        },
+        "operator": {
+          "enum": [
+            "in",
+            "contains_any",
+            "contains_all",
+            "starts_with_any",
+            "ends_with_any"
+          ]
+        },
+        "values": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": [
+              "string",
+              "integer",
+              "boolean"
+            ]
+          }
+        },
+        "case_sensitive": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "janus_correlation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "required_stages",
+        "join_field",
+        "window_seconds"
+      ],
+      "properties": {
+        "required_stages": {
+          "const": [
+            "component_a",
+            "component_b"
+          ]
+        },
+        "join_field": {
+          "const": "host"
+        },
+        "window_seconds": {
+          "const": 300
+        }
+      }
+    },
+    "janus_alert_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "component_only_confidence",
+        "correlated_confidence"
+      ],
+      "properties": {
+        "component_only_confidence": {
+          "const": "medium"
+        },
+        "correlated_confidence": {
+          "const": "high"
+        }
+      }
+    },
+    "suricata_detection_logic": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "summary",
+        "sid",
+        "revision",
+        "suricata_rule"
+      ],
+      "properties": {
+        "summary": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sid": {
+          "type": "integer",
+          "minimum": 1000000,
+          "maximum": 1999999
+        },
+        "revision": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "suricata_rule": {
+          "type": "string",
+          "minLength": 1,
+          "pattern": "^alert\\s"
+        }
+      }
+    },
+    "sigma_deployment_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_type",
+        "description",
+        "destination"
+      ],
+      "properties": {
+        "target_type": {
+          "const": "artifact_repository"
+        },
+        "description": {
+          "const": "Portable Sigma artifact; not actively deployed in the MVP"
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "janus_deployment_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_type",
+        "description",
+        "destination"
+      ],
+      "properties": {
+        "target_type": {
+          "const": "janus_controller_host"
+        },
+        "description": {
+          "const": "Windows machine running the Project Janus Python scripts"
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "suricata_deployment_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "target_type",
+        "description",
+        "destination"
+      ],
+      "properties": {
+        "target_type": {
+          "const": "pfsense_suricata"
+        },
+        "description": {
+          "const": "Suricata instance on the pfSense interface that observes IT-to-OT Modbus traffic"
+        },
+        "destination": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}
