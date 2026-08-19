@@ -61,7 +61,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--rule_file",
         type=Path,
-        help="atomically copy valid JSON here; omit for validation only",
+        help="Path to the Janus Windows JSON rule being evaluated",
         required=True
     )
     parser.add_argument(
@@ -85,37 +85,90 @@ def get_nested_field(record: dict, field_path: str):
 
     return current
 
-def expression_matches(event: dict, expression: dict) -> bool:
-    """
-    Evaluate one rule expression against one normalized event.
-    """
-    field = expression["field"]
-    operator = expression["operator"]
-    expected = expression["value"]
-    case_sensitive = expression.get("case_sensitive", True)
+def normalize_comparison_value(value, case_sensitive: bool) -> str:
+    """Convert a scalar rule or event value into comparable text."""
+    rendered = str(value)
+    return rendered if case_sensitive else rendered.casefold()
 
-    actual = get_nested_field(event, field)
 
-    if actual is None:
+def condition_matches(event: dict, condition: dict) -> bool:
+    """Evaluate one scalar or list condition against one event field."""
+    try:
+        field = condition["field"]
+        operator = condition["operator"]
+    except KeyError as exc:
+        raise ValueError(f"Malformed condition missing {exc.args[0]!r}") from exc
+
+    actual_value = get_nested_field(event, field)
+    if actual_value is None:
         return False
 
-    actual = str(actual)
-    expected = str(expected)
+    # JSON Schema defaults are annotations and are not inserted into the rule,
+    # so the evaluator must apply the contract's false default itself.
+    case_sensitive = condition.get("case_sensitive", False)
+    actual = normalize_comparison_value(actual_value, case_sensitive)
 
-    if not case_sensitive:
-        actual = actual.lower()
-        expected = expected.lower()
+    scalar_operators = {"equals", "contains", "starts_with", "ends_with"}
+    list_operators = {
+        "in",
+        "contains_any",
+        "contains_all",
+        "starts_with_any",
+        "ends_with_any",
+    }
 
-    if operator == "contains":
-        return expected in actual
+    if operator in scalar_operators:
+        if "value" not in condition:
+            raise ValueError(f"Operator {operator!r} requires 'value'")
+        expected = normalize_comparison_value(
+            condition["value"], case_sensitive
+        )
 
-    if operator == "ends_with":
+        if operator == "equals":
+            return actual == expected
+        if operator == "contains":
+            return expected in actual
+        if operator == "starts_with":
+            return actual.startswith(expected)
         return actual.endswith(expected)
 
-    if operator == "equals":
-        return actual == expected
+    if operator in list_operators:
+        values = condition.get("values")
+        if not isinstance(values, list) or not values:
+            raise ValueError(f"Operator {operator!r} requires non-empty 'values'")
+        expected_values = [
+            normalize_comparison_value(value, case_sensitive)
+            for value in values
+        ]
+
+        if operator == "in":
+            return actual in expected_values
+        if operator == "contains_any":
+            return any(expected in actual for expected in expected_values)
+        if operator == "contains_all":
+            return all(expected in actual for expected in expected_values)
+        if operator == "starts_with_any":
+            return any(actual.startswith(expected) for expected in expected_values)
+        return any(actual.endswith(expected) for expected in expected_values)
 
     raise ValueError(f"Unsupported operator: {operator}")
+
+
+def expression_matches(event: dict, expression: dict) -> bool:
+    """Recursively evaluate a condition or an all/any expression group."""
+    is_group = "logic" in expression or "expressions" in expression
+    if not is_group:
+        return condition_matches(event, expression)
+
+    logic = expression.get("logic")
+    expressions = expression.get("expressions")
+    if logic not in {"all", "any"}:
+        raise ValueError(f"Unsupported expression logic: {logic}")
+    if not isinstance(expressions, list) or not expressions:
+        raise ValueError("Expression group requires non-empty 'expressions'")
+
+    matches = (expression_matches(event, child) for child in expressions)
+    return all(matches) if logic == "all" else any(matches)
 
 
 def stage_matches(event: dict, stage: dict) -> bool:
@@ -125,22 +178,7 @@ def stage_matches(event: dict, stage: dict) -> bool:
     if event.get("record_type") != stage["record_type"]:
         return False
 
-    criteria = stage["criteria"]
-    expressions = criteria["expressions"]
-    logic = criteria["logic"]
-
-    results = [
-        expression_matches(event, expression)
-        for expression in expressions
-    ]
-
-    if logic == "all":
-        return all(results)
-
-    if logic == "any":
-        return any(results)
-
-    raise ValueError(f"Unsupported criteria logic: {logic}")
+    return expression_matches(event, stage["criteria"])
 
 def parse_timestamp(timestamp: str) -> datetime:
     return datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
@@ -247,10 +285,12 @@ def main():
     print(f"Correlated detections: {len(correlations)}")
     print(f"Verdict: {'PASS' if passed else 'REVISE'}")
 
-    if len(correlations) > 0:
+    if args.mode == "attack" and passed and len(correlations) > 0:
         send_notif(rule, len(correlations))
+
+    return 0 if passed else 2
 
 
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

@@ -1,1 +1,8 @@
 *.env
+config/lab.json
+deployment-logs/
+workspace/
+evidence/raw/
+evidence/normalized/
+**/__pycache__/
+*.py[cod]

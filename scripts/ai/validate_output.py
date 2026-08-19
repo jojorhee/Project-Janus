@@ -20,7 +20,7 @@ except ImportError:
     raise SystemExit(2)
 
 
-SCRIPT_DIR = Path(__file__).resolve().parent.parent
+SCRIPT_DIR = Path(__file__).resolve().parent
 DEFAULT_SCHEMA = SCRIPT_DIR / "schemas/llm_detection_output_schema.json"
 
 
@@ -97,7 +97,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Validate a Project Janus LLM detection output against its JSON Schema."
     )
-    parser.add_argument("candidate", type=Path, help="LLM candidate JSON file")
+    parser.add_argument("--candidate", type=Path, help="LLM candidate JSON file")
     parser.add_argument(
         "--schema",
         type=Path,

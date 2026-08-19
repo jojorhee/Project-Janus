@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-08-19T15:34:10.871956+0000",
+  "event_type": "alert",
+  "src_ip": "10.10.10.30",
+  "dest_ip": "10.10.20.10",
+  "dest_port": 502,
+  "alert": {
+    "action": "allowed",
+    "signature_id": 1002001,
+    "signature": "JANUS OT Modbus Write Single Coil to monitored endpoint"
+  },
+  "modbus": {
+    "function_code": "WrSingleCoil",
+    "write_address": 1,
+    "write_data": 65280
+  }
+}
+

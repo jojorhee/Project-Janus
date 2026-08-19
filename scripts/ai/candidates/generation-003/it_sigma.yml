@@ -1,0 +1,39 @@
+title: Network-Hosted PowerShell With Suspicious Execution Context
+id: 4d2c6ef4-4a79-4d56-b6a0-ef71d64caa03
+status: proposed
+description: Detects PowerShell process creation from a UNC path when execution options indicate potentially suspicious noninteractive, bypass, encoded, hidden, or command-based execution.
+author: Project Janus
+date: 2026-08-11
+logsource:
+  product: windows
+  service: sysmon
+  category: process_creation
+detection:
+  selection_event:
+    EventID: 1
+  selection_image:
+    Image|endswith:
+      - '\\powershell.exe'
+      - '\\pwsh.exe'
+  selection_unc:
+    CommandLine|contains: '\\\\'
+  selection_suspicious_context:
+    CommandLine|contains:
+      - '-ExecutionPolicy Bypass'
+      - '-NonInteractive'
+      - '-EncodedCommand'
+      - '-enc '
+      - '-WindowStyle Hidden'
+  selection_noprofile_command:
+    CommandLine|contains|all:
+      - '-NoProfile'
+      - '-Command'
+  condition: selection_event and selection_image and selection_unc and (selection_suspicious_context or selection_noprofile_command)
+falsepositives:
+  - Approved administration scripts executed from network shares
+  - Software deployment or logon scripts
+  - PowerShell automation using noninteractive or execution-policy options
+level: medium
+tags:
+  - attack.execution
+  - attack.t1059.001

@@ -1,0 +1,1 @@
+alert tcp any any -> 10.10.20.10 502 (msg:"JANUS OT Modbus Write Single Coil to Monitored Endpoint"; flow:to_server; modbus: function 5; classtype:protocol-command-decode; sid:1000001; rev:1;)

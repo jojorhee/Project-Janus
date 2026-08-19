@@ -1,0 +1,80 @@
+{
+  "schema_version": "1.1",
+  "request_id": "generation-004",
+  "target": "ot",
+  "status": "proposed",
+  "rules": [
+    {
+      "rule_type": "suricata",
+      "rule_id": "janus-ot-modbus-write-single-coil-001",
+      "title": "Modbus Write Single Coil to Monitored Conpot Endpoint",
+      "detection_logic": {
+        "summary": "Alerts on Modbus TCP function-code-5 requests directed to 10.10.20.10:502 without restricting source, coil address, coil value, unit ID, or transaction ID.",
+        "sid": 1000001,
+        "revision": 1,
+        "suricata_rule": "alert tcp any any -> 10.10.20.10 502 (msg:\"JANUS OT Modbus Write Single Coil to Monitored Endpoint\"; flow:to_server; modbus: function 5; classtype:protocol-command-decode; sid:1000001; rev:1;)"
+      },
+      "evidence_references": [
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\ot\\runs\\run-001\\raw\\ot_run_001.pcap",
+          "locator": {
+            "packet_number": 83
+          },
+          "relevance": "Attack evidence record at data.function_code=5, network.destination_ip=10.10.20.10, network.destination_port=502, and network.protocol=modbus_tcp."
+        },
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\ot\\runs\\run-001\\raw\\ot_run_001.pcap",
+          "locator": {
+            "packet_number": 133
+          },
+          "relevance": "Attack evidence record at data.function_code=5 shows the restoration write to network.destination_ip=10.10.20.10 and network.destination_port=502."
+        },
+        {
+          "run_id": "run-001",
+          "label": "baseline",
+          "source_file": "C:\\CyberRangers\\evidence\\ot\\baselines\\baseline-001\\conpot_baseline_1.pcap",
+          "locator": {
+            "packet_number": 4
+          },
+          "relevance": "Baseline evidence record has data.function_code=1 to network.destination_ip=10.10.20.10 on network.destination_port=502 and should not meet the function-code-5 condition."
+        }
+      ],
+      "required_fields": [
+        "source.raw_file",
+        "source.packet_number",
+        "run_id",
+        "label",
+        "network.destination_ip",
+        "network.destination_port",
+        "network.protocol",
+        "data.function_code"
+      ],
+      "expected_attack_result": {
+        "dataset_label": "attack",
+        "expected_minimum_matches": 1,
+        "expected_behavior": "Expected to alert for each observed Modbus function-code-5 request to 10.10.20.10:502, including both the controlled write and restoration write represented by the cited attack packet references."
+      },
+      "expected_baseline_result": {
+        "dataset_label": "baseline",
+        "expected_matches": 0,
+        "expected_behavior": "Expected to produce zero matches for baseline records containing Modbus function-code-1 reads rather than function-code-5 writes."
+      },
+      "limitations": [
+        "The rule detects Modbus function-code-5 requests to one monitored endpoint and does not identify attacker identity or intent.",
+        "Authorized maintenance, scripted restoration, commissioning, or testing that performs a function-code-5 write to 10.10.20.10:502 will alert.",
+        "The rule cannot distinguish the controlled write from a restoration write.",
+        "The rule does not cover other Modbus write functions, other OT endpoints, or other protocols.",
+        "Detection depends on the observing pfSense interface receiving the request and Suricata parsing Modbus traffic."
+      ],
+      "deployment_target": {
+        "target_type": "pfsense_suricata",
+        "description": "Suricata instance on the pfSense interface that observes IT-to-OT Modbus traffic",
+        "destination": "Approved custom .rules artifact for the pfSense Suricata interface observing traffic to 10.10.20.10:502"
+      }
+    }
+  ]
+}

@@ -1,29 +1,65 @@
 # Project Janus Scripts
 
-Scripts and evidence-processing components for the Project Janus IT/OT
-purple-team pipeline.
+Scripts for the safe IT/OT simulation, evidence normalization, AI-assisted rule
+generation, deterministic validation, deployment, rollback, and pfSense
+response workflow.
 
-## Repository map
+## Layout
 
-- `ai/` — LLM pipeline, schemas, detection specifications, mocks, and prior candidates.
-- `windows/` — IT simulation, collection, normalization, and cleanup scripts.
-- `ot/` — Modbus simulation, evidence collection, and OT normalization scripts.
-- `evidence/normalized/it/` — analysis-ready IT JSONL, labeled by filename and record.
-- `evidence/normalized/ot/` — analysis-ready OT JSONL, labeled by filename and record.
-- `evidence/raw/it/` and `evidence/raw/ot/` — immutable source evidence organized by run.
-- `lab/` — lab-only PCAP location configuration and pre-lab material.
-- `workspace/` — generated rules, validation logs, screenshots, backups, and final evidence.
-- `docs/LAB_CHECKLIST.md` — exact lab execution checklist and expected artifacts.
+- `ai/` — generation pipeline, schemas, specifications, validators, deployment,
+  rollback, and safe mocks.
+- `windows/` — IT simulation, collection, normalization, and cleanup.
+- `ot/` — Modbus baseline, write, restore, orchestration, and normalization.
+- `response/` — fail-closed pfSense EVE-alert validator and blocklist updater.
+- `config/` — publication-safe lab configuration template.
+- `docs/LAB_CHECKLIST.md` — original OT laboratory checklist.
+
+Generated logs, raw PCAPs, full normalized datasets, and local configuration are
+excluded from publication.
 
 ## Setup
 
 ```powershell
 uv sync
 Copy-Item ai/.env.example ai/.env
+Copy-Item config/lab.example.json config/lab.json
 ```
 
-Put the API key only in `ai/.env`. The real `.env`, virtual environment,
-PCAPs, and generated working output are excluded from Git.
+Set `OPENAI_API_KEY` only in the ignored `ai/.env`. Review every address and
+safety boundary in `config/lab.json` before executing a simulation.
 
-Before entering the lab, complete `docs/LAB_CHECKLIST.md`. The JSONL files are
-inputs to generation; the original PCAP/PCAPNG files are separate validation inputs.
+## Generation
+
+```powershell
+uv run python ai/janus_pipeline.py generate --help
+```
+
+Candidate output remains untrusted until the appropriate validator, attack
+dataset, baseline dataset, hash gate, and deployment health check all pass.
+
+## OT offline validation
+
+```bash
+./ai/rule_test.sh \
+  <rule-file> <sid> <output-directory> \
+  <attack.pcap> <baseline.pcap>
+```
+
+## OT deployment
+
+Run from Linux:
+
+```bash
+./ai/deploy_ot_rule.sh <local-rule-file> <approved-sha256>
+```
+
+The deployment verifies the candidate before and after transfer, validates the
+combined Suricata ruleset, reloads the live process, and publishes the deployed
+SID for the response controller.
+
+## Safety
+
+These scripts are for the documented isolated lab only. The Windows wiper is
+marker-protected and targets disposable files. The Modbus workflow requires an
+approved target, allowlisted coil, captured baseline, explicit confirmation,
+and restoration.
