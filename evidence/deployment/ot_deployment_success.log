@@ -1,0 +1,26 @@
+Local candidate hash approved: f17ffc4ebc24e930a3c2cbd86d4e53a7ad33607823a291009a6219e1864aa5be
+Uploading candidate to admin@10.10.20.1:/tmp/.janus-ot.rules.upload
+Remote candidate hash approved: f17ffc4ebc24e930a3c2cbd86d4e53a7ad33607823a291009a6219e1864aa5be
+Staged response SID: 1002001
+Testing combined ruleset...
+19/8/2026 -- 15:49:35 - <Notice> -- This is Suricata version 7.0.11 RELEASE running in SYSTEM mode
+19/8/2026 -- 15:49:35 - <Info> -- CPUs/cores online: 1
+19/8/2026 -- 15:49:35 - <Info> -- Running suricata under test mode
+19/8/2026 -- 15:49:35 - <Info> -- Setting engine mode to IDS mode by default
+19/8/2026 -- 15:49:35 - <Info> -- HTTP memcap: 67108864
+19/8/2026 -- 15:49:35 - <Info> -- fast output device (regular) initialized: alerts.log
+19/8/2026 -- 15:49:35 - <Info> -- http-log output device (regular) initialized: http.log
+19/8/2026 -- 15:49:35 - <Info> -- eve-log output device (regular) initialized: eve.json
+19/8/2026 -- 15:49:35 - <Info> -- Going to log the md5 sum of email subject
+19/8/2026 -- 15:49:35 - <Info> -- 1 rule files processed. 382 rules successfully loaded, 0 rules failed, 0
+19/8/2026 -- 15:49:35 - <Info> -- Threshold config parsed: 0 rule(s) found
+19/8/2026 -- 15:49:35 - <Info> -- 382 signatures processed. 0 are IP-only rules, 0 are inspecting packet payload, 201 inspect application layer, 109 are decoder event only
+19/8/2026 -- 15:49:35 - <Notice> -- Configuration provided was successfully loaded. Exiting.
+Reloading OT Suricata...
+{"message": "done", "return": "OK"}
+Candidate hash: f17ffc4ebc24e930a3c2cbd86d4e53a7ad33607823a291009a6219e1864aa5be
+Active combined hash: aedcfc3645e2eb7eb81f27f13eb6eb09020d301517995ae6c7da2ff47c5fa84c
+Approved response SID: 1002001
+{"message": [{"id": 0, "rules_loaded": 382, "rules_failed": 0, "rules_skipped": 0}], "return": "OK"}
+OT DEPLOYMENT PASS
+Deployment log: <local-project>/scripts/deployment-logs/ot_deploy_20260819T154935Z.log

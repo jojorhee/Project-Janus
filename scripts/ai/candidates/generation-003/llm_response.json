@@ -1,0 +1,243 @@
+{
+  "schema_version": "1.1",
+  "request_id": "generation-003",
+  "target": "windows",
+  "status": "proposed",
+  "rules": [
+    {
+      "rule_type": "sigma",
+      "rule_id": "janus-sigma-network-hosted-powershell-suspicious-context",
+      "title": "Network-Hosted PowerShell With Suspicious Execution Context",
+      "detection_logic": {
+        "summary": "Detects Sysmon Event ID 1 for PowerShell or PowerShell Core launched with a generic UNC path and at least one suspicious execution-option category.",
+        "sigma_yaml": "title: Network-Hosted PowerShell With Suspicious Execution Context\nid: 4d2c6ef4-4a79-4d56-b6a0-ef71d64caa03\nstatus: proposed\ndescription: Detects PowerShell process creation from a UNC path when execution options indicate potentially suspicious noninteractive, bypass, encoded, hidden, or command-based execution.\nauthor: Project Janus\ndate: 2026-08-11\nlogsource:\n  product: windows\n  service: sysmon\n  category: process_creation\ndetection:\n  selection_event:\n    EventID: 1\n  selection_image:\n    Image|endswith:\n      - '\\\\powershell.exe'\n      - '\\\\pwsh.exe'\n  selection_unc:\n    CommandLine|contains: '\\\\\\\\'\n  selection_suspicious_context:\n    CommandLine|contains:\n      - '-ExecutionPolicy Bypass'\n      - '-NonInteractive'\n      - '-EncodedCommand'\n      - '-enc '\n      - '-WindowStyle Hidden'\n  selection_noprofile_command:\n    CommandLine|contains|all:\n      - '-NoProfile'\n      - '-Command'\n  condition: selection_event and selection_image and selection_unc and (selection_suspicious_context or selection_noprofile_command)\nfalsepositives:\n  - Approved administration scripts executed from network shares\n  - Software deployment or logon scripts\n  - PowerShell automation using noninteractive or execution-policy options\nlevel: medium\ntags:\n  - attack.execution\n  - attack.t1059.001"
+      },
+      "evidence_references": [
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\runs\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+          "locator": {
+            "raw_row": 6
+          },
+          "relevance": "The normalized record contains data.event_id 1, a PowerShell process image, a UNC path in data.command_line, and -NoProfile, -ExecutionPolicy Bypass, and -Command options."
+        },
+        {
+          "run_id": "run-001",
+          "label": "baseline",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\baselines\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+          "locator": {
+            "raw_row": 1
+          },
+          "relevance": "The normalized baseline process-creation record provides a non-PowerShell Event ID 1 example that lacks the proposed PowerShell image, UNC-path, and suspicious-option conditions."
+        }
+      ],
+      "required_fields": [
+        "timestamp_utc",
+        "host",
+        "data.event_id",
+        "data.process_image",
+        "data.command_line"
+      ],
+      "expected_attack_result": {
+        "dataset_label": "attack",
+        "expected_minimum_matches": 1,
+        "expected_behavior": "Expected to match PowerShell process creation containing a generic UNC path and suspicious execution-option categories."
+      },
+      "expected_baseline_result": {
+        "dataset_label": "baseline",
+        "expected_matches": 0,
+        "expected_behavior": "Expected to produce no matches for baseline process-creation records that lack the combined PowerShell, UNC-path, and suspicious-option conditions."
+      },
+      "limitations": [
+        "This Sigma candidate detects only the process-creation component and does not establish destructive impact by itself.",
+        "Generic UNC PowerShell execution with bypass, noninteractive, encoded, hidden, or command options can be legitimate administrative activity.",
+        "Sigma field mappings and correlation behavior vary across backends."
+      ],
+      "deployment_target": {
+        "target_type": "artifact_repository",
+        "description": "Portable Sigma artifact; not actively deployed in the MVP",
+        "destination": "project-janus/proposed-rules/windows"
+      }
+    },
+    {
+      "rule_type": "janus_windows_json",
+      "rule_id": "janus-windows-network-hosted-powershell-destructive-content",
+      "title": "Network-Hosted PowerShell Execution With Destructive Script Content",
+      "detection_logic": {
+        "summary": "Correlates network-hosted PowerShell process creation using suspicious execution options with PowerShell operational content containing destructive filesystem-operation categories on the same host within five minutes.",
+        "stages": [
+          {
+            "stage_id": "component_a",
+            "record_type": "process_creation",
+            "criteria": {
+              "logic": "all",
+              "expressions": [
+                {
+                  "field": "data.event_id",
+                  "operator": "equals",
+                  "value": 1
+                },
+                {
+                  "field": "data.process_image",
+                  "operator": "ends_with_any",
+                  "values": [
+                    "\\powershell.exe",
+                    "\\pwsh.exe"
+                  ]
+                },
+                {
+                  "field": "data.command_line",
+                  "operator": "contains",
+                  "value": "\\\\"
+                },
+                {
+                  "logic": "any",
+                  "expressions": [
+                    {
+                      "field": "data.command_line",
+                      "operator": "contains",
+                      "value": "-ExecutionPolicy Bypass"
+                    },
+                    {
+                      "field": "data.command_line",
+                      "operator": "contains",
+                      "value": "-NonInteractive"
+                    },
+                    {
+                      "field": "data.command_line",
+                      "operator": "contains_any",
+                      "values": [
+                        "-EncodedCommand",
+                        "-enc "
+                      ]
+                    },
+                    {
+                      "field": "data.command_line",
+                      "operator": "contains",
+                      "value": "-WindowStyle Hidden"
+                    },
+                    {
+                      "logic": "all",
+                      "expressions": [
+                        {
+                          "field": "data.command_line",
+                          "operator": "contains",
+                          "value": "-NoProfile"
+                        },
+                        {
+                          "field": "data.command_line",
+                          "operator": "contains",
+                          "value": "-Command"
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
+            }
+          },
+          {
+            "stage_id": "component_b",
+            "record_type": "powershell",
+            "criteria": {
+              "logic": "all",
+              "expressions": [
+                {
+                  "field": "data.event_id",
+                  "operator": "in",
+                  "values": [
+                    4103,
+                    4104
+                  ]
+                },
+                {
+                  "field": "data.script_text",
+                  "operator": "contains_any",
+                  "values": [
+                    "Remove-Item",
+                    "[System.IO.File]::Delete",
+                    "[System.IO.Directory]::Delete",
+                    "Clear-Content"
+                  ]
+                }
+              ]
+            }
+          }
+        ],
+        "correlation": {
+          "required_stages": [
+            "component_a",
+            "component_b"
+          ],
+          "join_field": "host",
+          "window_seconds": 300
+        },
+        "alert_policy": {
+          "component_only_confidence": "medium",
+          "correlated_confidence": "high"
+        }
+      },
+      "evidence_references": [
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\runs\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-Sysmon_Operational.csv",
+          "locator": {
+            "raw_row": 6
+          },
+          "relevance": "The normalized process-creation record contains data.event_id 1, data.process_image ending in powershell.exe, a UNC path in data.command_line, and suspicious execution options."
+        },
+        {
+          "run_id": "run-001",
+          "label": "attack",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\runs\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-PowerShell_Operational.csv",
+          "locator": {
+            "raw_row": 175
+          },
+          "relevance": "The normalized PowerShell operational record contains data.event_id 4103 and data.script_text with Remove-Item."
+        },
+        {
+          "run_id": "run-001",
+          "label": "baseline",
+          "source_file": "C:\\CyberRangers\\evidence\\it\\baselines\\run-001\\raw\\windows-client\\EventLog_Microsoft-Windows-PowerShell_Operational.csv",
+          "locator": {
+            "raw_row": 1
+          },
+          "relevance": "The normalized baseline PowerShell record is Event ID 4103 but its data.script_text does not contain a proposed destructive filesystem-operation category."
+        }
+      ],
+      "required_fields": [
+        "timestamp_utc",
+        "host",
+        "data.event_id",
+        "data.process_image",
+        "data.command_line",
+        "data.script_text",
+        "source.raw_file",
+        "source.raw_row"
+      ],
+      "expected_attack_result": {
+        "dataset_label": "attack",
+        "expected_minimum_matches": 1,
+        "expected_behavior": "Expected to generate a high-confidence correlation when both components occur on the same host within 300 seconds; a single matched component is expected to be assigned medium confidence."
+      },
+      "expected_baseline_result": {
+        "dataset_label": "baseline",
+        "expected_matches": 0,
+        "expected_behavior": "Expected to produce no matches where baseline records do not satisfy both the network-hosted suspicious PowerShell component and destructive PowerShell-content component."
+      },
+      "limitations": [
+        "PowerShell Event IDs 4103 and 4104 depend on logging configuration and may be absent.",
+        "Host-and-time correlation can combine unrelated activity when process identifiers are unavailable across sources.",
+        "Destructive PowerShell filesystem commands and network-hosted PowerShell can be legitimate administrative or maintenance activity.",
+        "This rule does not use RDP attribution as detection proof."
+      ],
+      "deployment_target": {
+        "target_type": "janus_controller_host",
+        "description": "Windows machine running the Project Janus Python scripts",
+        "destination": "project-janus/proposed-rules/windows"
+      }
+    }
+  ]
+}

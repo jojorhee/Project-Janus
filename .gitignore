@@ -1,0 +1,28 @@
+# Secrets and local configuration
+.env
+**/.env
+scripts/config/lab.json
+
+# Python and package-manager state
+.venv/
+**/__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Generated candidates, logs, and working evidence
+scripts/deployment-logs/
+scripts/workspace/
+scripts/evidence/raw/
+scripts/evidence/normalized/
+
+# Raw capture and Windows evidence formats
+*.pcap
+*.pcapng
+*.evtx
+
+# Editor and operating-system files
+*.swp
+*.tmp
+.DS_Store
+Thumbs.db
+

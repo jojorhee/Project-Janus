@@ -60,7 +60,7 @@ docs/assets/conpot/
 Conpot test logs are stored on the host at:
 
 ```text
-/home/jack/janus-tests
+/home/labuser/janus-tests
 ```
 
 ## Problems Encountered

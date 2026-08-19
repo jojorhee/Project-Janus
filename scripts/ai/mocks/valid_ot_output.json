@@ -18,7 +18,7 @@
         {
           "run_id": "run-003",
           "label": "attack",
-          "source_file": "C:\\Users\\jotakieater45\\Downloads\\project-janus-scripts\\attack\\modbus_requests.jsonl",
+          "source_file": "C:\\Users\\labuser\\Downloads\\project-janus-scripts\\attack\\modbus_requests.jsonl",
           "locator": {"packet_number": 42},
           "relevance": "Packet contains the allowlisted Modbus function-code 5 coil write."
         },
